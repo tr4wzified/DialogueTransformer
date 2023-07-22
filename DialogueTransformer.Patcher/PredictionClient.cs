@@ -14,18 +14,19 @@ namespace DialogueTransformer.Patcher
     internal class PredictionClient : IDisposable
     {
         private Process _Process { get; set; }
-        public PredictionClient(string exePath)
+        public PredictionClient(string exePath, string modelPath, string prefix)
         {
-            var filePath = Path.Combine(exePath, "Predict.exe");
+            var filePath = Path.Combine(exePath, "DialoguePredictor.exe");
             ProcessStartInfo startInfo = new ProcessStartInfo()
             {
                 FileName = filePath,
                 UseShellExecute = false,
                 RedirectStandardInput = true,
                 RedirectStandardOutput = true,
-                CreateNoWindow = true,
+                CreateNoWindow = false,
                 WorkingDirectory = exePath,
                 WindowStyle = ProcessWindowStyle.Hidden,
+                Arguments = $@"""{modelPath}"" ""{prefix}"""
             };
             _Process = new Process() { StartInfo = startInfo, EnableRaisingEvents = false };
             _Process.Start();
@@ -38,6 +39,9 @@ namespace DialogueTransformer.Patcher
         }
         private string FixPredictionErrors(string prediction)
         {
+            if (prediction.Length == 0)
+                return prediction;
+
             var outputBuilder = new StringBuilder();
             var words = prediction.Split(' ');
             for(int i = 0; i < words.Length; i++)

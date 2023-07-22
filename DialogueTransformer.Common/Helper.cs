@@ -19,9 +19,9 @@ namespace DialogueTransformer.Common
         [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         private static extern bool GlobalMemoryStatusEx([In, Out] MEMORYSTATUSEX lpBuffer);
 
-        public static Dictionary<FormKey, DialogTransformation> GetTranslationsFromCsv(string path)
+        public static Dictionary<FormKey, DialogueTransformation> GetTransformationsFromCsv(string path)
         {
-            Dictionary<FormKey, DialogTransformation> dialogTranslations = new();
+            Dictionary<FormKey, DialogueTransformation> dialogTranslations = new();
             using (var reader = new StreamReader(path))
             using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
             {
@@ -29,7 +29,7 @@ namespace DialogueTransformer.Common
                 csv.ReadHeader();
                 while (csv.Read())
                 {
-                    var record = csv.GetRecord<DialogTransformation>();
+                    var record = csv.GetRecord<DialogueTransformation>();
                     if (record != null)
                         dialogTranslations.Add(FormKey.Factory(record.FormKey), record);
                 }

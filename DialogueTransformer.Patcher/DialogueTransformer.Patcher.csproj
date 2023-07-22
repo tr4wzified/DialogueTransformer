@@ -5,6 +5,11 @@
     <TargetFramework>net6.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <Version>$(VersionPrefix)</Version>
+    <RepositoryUrl>https://github.com/tr4wzified/DialogueTransformer/</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion></FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
@@ -20,10 +25,6 @@
     <None Remove="KhajiitTranslations.csv" />
   </ItemGroup>
 
-  <ItemGroup>
-    <None Include="InternalData\KhajiitTranslations.csv" />
-  </ItemGroup>
-
 
   <ItemGroup>
     <PackageReference Include="CsvHelper" Version="30.0.1" />
@@ -34,7 +35,12 @@
 
 
   <ItemGroup>
-    <ProjectReference Include="..\DialogTransformer.Common\DialogTransformer.Common.csproj" />
+    <ProjectReference Include="..\DialogueTransformer.Common\DialogueTransformer.Common.csproj" />
+  </ItemGroup>
+
+
+  <ItemGroup>
+    <Folder Include="InternalData\" />
   </ItemGroup>
   <Target Name="AfterBuild">
     <Copy SourceFiles="$(ProjectDir)\dist" DestinationFolder="$(OutputPath)" ContinueOnError="true" />

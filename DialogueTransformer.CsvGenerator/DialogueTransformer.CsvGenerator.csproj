@@ -11,6 +11,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DialogTransformer.Common\DialogTransformer.Common.csproj" />
+    <ProjectReference Include="..\DialogueTransformer.Common\DialogueTransformer.Common.csproj" />
   </ItemGroup>
 </Project>

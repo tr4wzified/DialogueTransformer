@@ -9,6 +9,7 @@ using DialogueTransformer.Common;
 using System.Diagnostics;
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
+using System.Reflection;
 
 namespace DialogueTransformer.Patcher
 {
@@ -20,19 +21,47 @@ namespace DialogueTransformer.Patcher
         {
             return await SynthesisPipeline.Instance
                 .AddPatch<ISkyrimMod, ISkyrimModGetter>(RunPatch)
-                .SetTypicalOpen(GameRelease.SkyrimSE, $"SDT_{PATCHER_TYPE}.esp")
+                .SetTypicalOpen(GameRelease.SkyrimSE, $"DialogueTransformer.esp")
                 .Run(args);
         }
 
         public static async void RunPatch(IPatcherState<ISkyrimMod, ISkyrimModGetter> state)
         {
+
             if (state.InternalDataPath == null)
                 throw new Exception("InternalDataPath was null - patcher cannot function!");
 
-            var path = Path.Combine(state.InternalDataPath, CSV_FILE_NAME);
-            var handTranslatedRecords = Helper.GetTranslationsFromCsv(Path.Combine(path, CSV_FILE_NAME));
-            Dictionary<IDialogTopicGetter, string> dialogRecordsToPredict = new();
+            var version = Assembly.GetExecutingAssembly().GetName().Version;
+            var availableModels = Directory.GetDirectories(Path.Combine(state.DataFolderPath, "DialogueTransformer")).Select(d => new DirectoryInfo(d)).ToList();
 
+            Console.WriteLine("----------------------------------------------------------");
+            Console.WriteLine($"DialogueTransformer {version} by trawzified (PRE-RELEASE)");
+            Console.WriteLine("----------------------------------------------------------");
+
+            int selectedModelNumber = 0;
+            while (selectedModelNumber <= 0)
+            {
+                Console.WriteLine("Select a model to transform dialogue to: ");
+                for(int i = 0; i < availableModels.Count; i++)
+                {
+                    var model = availableModels[i];
+                    Console.WriteLine($"({i + 1}) - {model.Name}");
+                }
+                int.TryParse(Console.ReadLine(), out selectedModelNumber);
+            }
+
+            var selectedModelPath = availableModels[selectedModelNumber - 1];
+
+            // Get CSV overrides
+            var csvOverrides = Directory.GetFiles(Path.Combine(selectedModelPath.FullName, "CSVOverrides"), "*.csv");
+            List<Dictionary<FormKey, DialogueTransformation>> overrideDialogTransformations = new();
+            foreach(var csvOverride in csvOverrides)
+            {
+                overrideDialogTransformations.Add(Helper.GetTransformationsFromCsv(csvOverride));
+            }
+
+            var joinedTransformationOverrides = overrideDialogTransformations.SelectMany(dict => dict).ToDictionary(pair => pair.Key, pair => pair.Value);
+            Dictionary<IDialogTopicGetter, string> dialogRecordsToPredict = new();
 
             foreach (var dialogTopic in state.LoadOrder.PriorityOrder.DialogTopic().WinningContextOverrides())
             {
@@ -41,11 +70,11 @@ namespace DialogueTransformer.Patcher
                     continue;
 
                 // First try to use the previously translated records from analyzed Khajiit patches
-                if (handTranslatedRecords.TryGetValue(dialogTopic.Record.FormKey, out var dialogTranslation))
+                if (joinedTransformationOverrides.TryGetValue(dialogTopic.Record.FormKey, out var dialogTranslation))
                 {
                     var translatedDialog = dialogTopic.Record.DeepCopy();
                     translatedDialog.Name = dialogTranslation.TargetText;
-                    //state.PatchMod.DialogTopics.GetOrAddAsOverride(translatedDialog);
+                    state.PatchMod.DialogTopics.GetOrAddAsOverride(translatedDialog);
                     continue;
                 }
 
@@ -57,18 +86,24 @@ namespace DialogueTransformer.Patcher
                 dialogRecordsToPredict.Add(dialogTopic.Record, name);
             }
 
-            var predictPath = Path.Combine(path, "dist", "Predict");
-            Console.WriteLine($"Starting to predict {dialogRecordsToPredict.Count} records");
+            var predictorPath = Path.Combine(state.InternalDataPath, "DialoguePredictor");
 
             var memoryAmount = Helper.GetTotalMemory();
-            var maxMemoryAllowedToTakeUpInGB = (((memoryAmount - 2048000000) / 1024000000) / 2);
+            var maxMemoryAllowedToTakeUpInGB = (((memoryAmount - 2048000000) / 1024000000) / 2.5);
             var predictionClientMemoryNeededInGB = 3;
             var threadAmount = (int)(maxMemoryAllowedToTakeUpInGB / (ulong)predictionClientMemoryNeededInGB);
             var chunkedDictionaries = dialogRecordsToPredict.Chunk(dialogRecordsToPredict.Count / threadAmount).ToList();
 
             // Split dictionary workload for each thread
-            ConcurrentDictionary<string, string> cachedPredictions = new();
-            //if(Path.Combine(state.DataFolderPath, "Khajiitifier"))
+            ConcurrentDictionary<FormKey, DialogueTransformation> cachedPredictions = new();
+            var cachedOverrides = Path.Combine(selectedModelPath.FullName, "CachedOverrides.csv");
+            if (File.Exists(cachedOverrides))
+            {
+                cachedPredictions = new ConcurrentDictionary<FormKey, DialogueTransformation>(Helper.GetTransformationsFromCsv(cachedOverrides));
+                Console.WriteLine($"Found {cachedPredictions.Count} cached predictions");
+            }
+
+            Console.WriteLine($"Starting to predict {dialogRecordsToPredict.Count} ({cachedPredictions.Count} cached) records");
             var sw = Stopwatch.StartNew();
             Task[] tasks = new Task[chunkedDictionaries.Count];
             for(int i = 0; i < chunkedDictionaries.Count; i++)
@@ -76,19 +111,24 @@ namespace DialogueTransformer.Patcher
                 var currentDictionary = chunkedDictionaries[i];
                 tasks[i] = Task.Run(() =>
                 {
-                    var client = new PredictionClient(predictPath);
+                    var client = new PredictionClient(predictorPath, Path.Combine(selectedModelPath.FullName, "Model"), File.ReadAllText(Path.Combine(selectedModelPath.FullName, "model_prefix.txt")));
                     foreach (var recordNamePair in currentDictionary)
                     {
                         var recordCopy = recordNamePair.Key.DeepCopy();
-                        string? prediction;
-                        if (!cachedPredictions.TryGetValue(recordNamePair.Value, out prediction))
+                        DialogueTransformation? prediction = null;
+                        if (!cachedPredictions.TryGetValue(recordNamePair.Key.FormKey, out prediction))
                         {
-                            prediction = client.Predict(recordNamePair.Value);
-                            cachedPredictions.TryAdd(recordNamePair.Value, prediction);
+                            var targetText = client.Predict(recordNamePair.Value);
+                            prediction = new DialogueTransformation()
+                            {
+                                SourceText = recordNamePair.Value,
+                                TargetText = client.Predict(recordNamePair.Value),
+                                FormKey = recordNamePair.Key.FormKey.ToString()
+                            };
+                            cachedPredictions.TryAdd(recordNamePair.Key.FormKey, prediction);
                         }
 
-                        prediction ??= string.Empty;
-                        recordCopy.Name = prediction;
+                        recordCopy.Name = prediction.TargetText;
                         state.PatchMod.DialogTopics.GetOrAddAsOverride(recordCopy);
                     }
                     client.Dispose();
@@ -96,6 +136,20 @@ namespace DialogueTransformer.Patcher
             }
             Task.WhenAll(tasks).Wait();
             sw.Stop();
+
+            Console.WriteLine($"Saving cache for {cachedPredictions.Count} records...");
+            using (var writer = new StreamWriter(Path.Combine(selectedModelPath.FullName, "CachedOverrides.csv")))
+            using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
+            {
+                csv.WriteHeader<DialogueTransformation>();
+                csv.NextRecord();
+                foreach (var dialogueTransformation in cachedPredictions.Values)
+                {
+                    csv.WriteRecord(dialogueTransformation);
+                    csv.NextRecord();
+                }
+            }
+            
 
             Console.WriteLine($"Took {sw.Elapsed.TotalSeconds} sec to predict {dialogRecordsToPredict.Count} records.");
         }

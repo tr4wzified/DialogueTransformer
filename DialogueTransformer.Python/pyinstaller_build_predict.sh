@@ -4,7 +4,7 @@
 # Yes I wrote a short bash shell script and not a bat or PS script, because fuck Windows command syntax :P
 
 echo '[DialogueTransformer PredictBuilder] Compiling Python prediction file into standalone executable...'
-pyinstaller DialoguePredictor.py
+pyinstaller DialoguePredictor.py --copy-metadata tqdm --copy-metadata regex --copy-metadata sacremoses --copy-metadata requests --copy-metadata packaging --copy-metadata filelock --copy-metadata numpy --copy-metadata tokenizers --copy-metadata rich
 echo '[DialogueTransformer PredictBuilder] Copying compiled directory with LM to patcher internal data...'
 cp -r dist/DialoguePredictor ../DialogueTransformer.Patcher/InternalData
 echo '[DialogueTransformer PredictBuilder] Deleting build and dist folders from this directory...'
