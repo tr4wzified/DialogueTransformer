@@ -1,0 +1,14 @@
+{
+  "Nickname": "",
+  "Visibility": "Exclude",
+  "OneLineDescription": "This patcher will convert all dialogue into Khajiit Speak without any worries about compatiblity with other mods!",
+  "LongDescription": "Inspired by the Khajiit Speak mod, which was an awesome idea but had so many compatibility issues you almost completely had to design your modlist around it. This patcher will look at the mods in your modlist and dynamically construct a Khajiit speak patch for them.",
+  "PreferredAutoVersioning": "Default",
+  "RequiredMods": [],
+  "TargetedReleases": [
+    "SkyrimLE",
+    "SkyrimSE",
+    "SkyrimVR",
+    "SkyrimSEGog"
+  ]
+}
