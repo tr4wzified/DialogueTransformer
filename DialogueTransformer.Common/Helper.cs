@@ -25,13 +25,20 @@ namespace DialogueTransformer.Common
             using (var reader = new StreamReader(path))
             using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
             {
-                csv.Read();
-                csv.ReadHeader();
-                while (csv.Read())
+                try
                 {
-                    var record = csv.GetRecord<DialogueTransformation>();
-                    if (record != null)
-                        dialogTranslations.Add(FormKey.Factory(record.FormKey), record);
+                    csv.Read();
+                    csv.ReadHeader();
+                    while (csv.Read())
+                    {
+                        var record = csv.GetRecord<DialogueTransformation>();
+                        if (record != null)
+                            dialogTranslations.Add(FormKey.Factory(record.FormKey), record);
+                    }
+                }
+                catch(Exception ex)
+                {
+                    return new();
                 }
             }
             return dialogTranslations;

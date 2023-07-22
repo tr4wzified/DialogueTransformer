@@ -1,3 +1,4 @@
+using DialogueTransformer.Common.Models;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -11,11 +12,13 @@ namespace DialogueTransformer.Patcher
     /// <summary>
     /// Khajiit Speak Prediction Engine, calling the compiled python Predict executable directly
     /// </summary>
-    internal class PredictionClient : IDisposable
+    internal class PredictionClient
     {
         private Process _Process { get; set; }
-        public PredictionClient(string exePath, string modelPath, string prefix)
+        private string Separator { get; set; }
+        public PredictionClient(string exePath, string modelPath, string prefix, string separator = "||")
         {
+            Separator = separator;
             var filePath = Path.Combine(exePath, "DialoguePredictor.exe");
             ProcessStartInfo startInfo = new ProcessStartInfo()
             {
@@ -23,19 +26,24 @@ namespace DialogueTransformer.Patcher
                 UseShellExecute = false,
                 RedirectStandardInput = true,
                 RedirectStandardOutput = true,
-                CreateNoWindow = false,
+                CreateNoWindow = true,
                 WorkingDirectory = exePath,
                 WindowStyle = ProcessWindowStyle.Hidden,
-                Arguments = $@"""{modelPath}"" ""{prefix}"""
+                Arguments = $@"""{modelPath}"" ""{prefix}"" ""{separator}"""
             };
             _Process = new Process() { StartInfo = startInfo, EnableRaisingEvents = false };
             _Process.Start();
         }
-        private string PredictInternal(string text)
+        ~PredictionClient()
         {
-            _Process.StandardInput.WriteLine(text);
+            _Process.Kill();
+        }
+        private IEnumerable<string> PredictInternal(IEnumerable<string> text)
+        {
+            _Process.StandardInput.WriteLine(string.Join(Separator, text));
             _Process.StandardInput.Flush();
-            return _Process.StandardOutput.ReadLine() ?? string.Empty;
+            var line = _Process.StandardOutput.ReadLine() ?? string.Empty;
+            return line.Split(Separator);
         }
         private string FixPredictionErrors(string prediction)
         {
@@ -46,12 +54,6 @@ namespace DialogueTransformer.Patcher
             var words = prediction.Split(' ');
             for(int i = 0; i < words.Length; i++)
             {
-                // Fix array chars at start and end
-                if (i == 0)
-                    words[i] = words[i].Substring(2);
-                else if (i == words.Length - 1)
-                    words[i] = words[i].Substring(0, words[i].Length - 2);
-
                 // Correct Alias=Player> and pronouns to include the <, model training error
                 var aliasIndex = words[i].IndexOf("Alias");
                 var greaterThanIndex = words[i].IndexOf(">");
@@ -69,7 +71,7 @@ namespace DialogueTransformer.Patcher
             return outputBuilder.ToString();
         }
 
-        public string Predict(string text) => FixPredictionErrors(PredictInternal(text));
+        public IEnumerable<string> Predict(IEnumerable<string> text) => PredictInternal(text).Select(prediction => FixPredictionErrors(prediction));
 
         public void Dispose() => _Process.Kill();
     }

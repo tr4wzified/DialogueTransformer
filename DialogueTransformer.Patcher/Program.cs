@@ -61,7 +61,7 @@ namespace DialogueTransformer.Patcher
             }
 
             var joinedTransformationOverrides = overrideDialogTransformations.SelectMany(dict => dict).ToDictionary(pair => pair.Key, pair => pair.Value);
-            Dictionary<IDialogTopicGetter, string> dialogRecordsToPredict = new();
+            Dictionary<FormKey, IDialogTopicGetter> dialogRecordsToPredict = new();
 
             foreach (var dialogTopic in state.LoadOrder.PriorityOrder.DialogTopic().WinningContextOverrides())
             {
@@ -83,76 +83,104 @@ namespace DialogueTransformer.Patcher
                     continue;
 
                 // Fallback to translation algorithm
-                dialogRecordsToPredict.Add(dialogTopic.Record, name);
+                dialogRecordsToPredict.Add(dialogTopic.Record.FormKey, dialogTopic.Record);
             }
 
             var predictorPath = Path.Combine(state.InternalDataPath, "DialoguePredictor");
 
-            var memoryAmount = Helper.GetTotalMemory();
-            var maxMemoryAllowedToTakeUpInGB = (((memoryAmount - 2048000000) / 1024000000) / 2.5);
-            var predictionClientMemoryNeededInGB = 3;
-            var threadAmount = (int)(maxMemoryAllowedToTakeUpInGB / (ulong)predictionClientMemoryNeededInGB);
-            var chunkedDictionaries = dialogRecordsToPredict.Chunk(dialogRecordsToPredict.Count / threadAmount).ToList();
 
             // Split dictionary workload for each thread
             ConcurrentDictionary<FormKey, DialogueTransformation> cachedPredictions = new();
-            var cachedOverrides = Path.Combine(selectedModelPath.FullName, "CachedOverrides.csv");
-            if (File.Exists(cachedOverrides))
+            var cachedPredictionsPath = Path.Combine(selectedModelPath.FullName, "CachedOverrides.csv");
+            if (File.Exists(cachedPredictionsPath))
             {
-                cachedPredictions = new ConcurrentDictionary<FormKey, DialogueTransformation>(Helper.GetTransformationsFromCsv(cachedOverrides));
+                cachedPredictions = new ConcurrentDictionary<FormKey, DialogueTransformation>(Helper.GetTransformationsFromCsv(cachedPredictionsPath));
                 Console.WriteLine($"Found {cachedPredictions.Count} cached predictions");
-            }
-
-            Console.WriteLine($"Starting to predict {dialogRecordsToPredict.Count} ({cachedPredictions.Count} cached) records");
-            var sw = Stopwatch.StartNew();
-            Task[] tasks = new Task[chunkedDictionaries.Count];
-            for(int i = 0; i < chunkedDictionaries.Count; i++)
-            {
-                var currentDictionary = chunkedDictionaries[i];
-                tasks[i] = Task.Run(() =>
+                Console.WriteLine($"Removing the cached predictions from the prediction queue ({dialogRecordsToPredict.Count}...");
+                int cachedCount = 0;
+                foreach(var cachedPrediction in cachedPredictions)
                 {
-                    var client = new PredictionClient(predictorPath, Path.Combine(selectedModelPath.FullName, "Model"), File.ReadAllText(Path.Combine(selectedModelPath.FullName, "model_prefix.txt")));
-                    foreach (var recordNamePair in currentDictionary)
+                    if(dialogRecordsToPredict.TryGetValue(cachedPrediction.Key, out var dialogTopicGetter))
                     {
-                        var recordCopy = recordNamePair.Key.DeepCopy();
-                        DialogueTransformation? prediction = null;
-                        if (!cachedPredictions.TryGetValue(recordNamePair.Key.FormKey, out prediction))
-                        {
-                            var targetText = client.Predict(recordNamePair.Value);
-                            prediction = new DialogueTransformation()
-                            {
-                                SourceText = recordNamePair.Value,
-                                TargetText = client.Predict(recordNamePair.Value),
-                                FormKey = recordNamePair.Key.FormKey.ToString()
-                            };
-                            cachedPredictions.TryAdd(recordNamePair.Key.FormKey, prediction);
-                        }
-
-                        recordCopy.Name = prediction.TargetText;
+                        var recordCopy = dialogTopicGetter.DeepCopy();
+                        recordCopy.Name = cachedPrediction.Value.TargetText;
                         state.PatchMod.DialogTopics.GetOrAddAsOverride(recordCopy);
+                        cachedCount++;
+                        dialogRecordsToPredict.Remove(cachedPrediction.Key);
                     }
-                    client.Dispose();
-                });
-            }
-            Task.WhenAll(tasks).Wait();
-            sw.Stop();
-
-            Console.WriteLine($"Saving cache for {cachedPredictions.Count} records...");
-            using (var writer = new StreamWriter(Path.Combine(selectedModelPath.FullName, "CachedOverrides.csv")))
-            using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
-            {
-                csv.WriteHeader<DialogueTransformation>();
-                csv.NextRecord();
-                foreach (var dialogueTransformation in cachedPredictions.Values)
-                {
-                    csv.WriteRecord(dialogueTransformation);
-                    csv.NextRecord();
                 }
             }
-            
 
-            Console.WriteLine($"Took {sw.Elapsed.TotalSeconds} sec to predict {dialogRecordsToPredict.Count} records.");
+            if (dialogRecordsToPredict.Any())
+            {
+                var memoryAmount = Helper.GetTotalMemory();
+                var maxMemoryAllowedToTakeUpInGB = (((memoryAmount - 2048000000) / 1024000000) / 2);
+                var predictionClientMemoryNeededInGB = 2;
+                var threadAmount = (int)(maxMemoryAllowedToTakeUpInGB / (ulong)predictionClientMemoryNeededInGB);
+                //var threadAmount = 20;
+                var chunkedDialogTopics = dialogRecordsToPredict.Values.Chunk(dialogRecordsToPredict.Count / threadAmount).Select(chunk => chunk.ToList()).ToList();
+                Console.WriteLine($"Starting to predict {dialogRecordsToPredict.Count} records spread over {threadAmount} threads...");
+                var sw = Stopwatch.StartNew();
+                Task[] tasks = new Task[chunkedDialogTopics.Count];
+                int predictedAmount = 0;
+                for (int i = 0; i < chunkedDialogTopics.Count; i++)
+                {
+                    var currentDictionary = chunkedDialogTopics[i];
+                    tasks[i] = Task.Run(() =>
+                    {
+                        var client = new PredictionClient(predictorPath, Path.Combine(selectedModelPath.FullName, "Model"), File.ReadAllText(Path.Combine(selectedModelPath.FullName, "model_prefix.txt")));
+                        var predictions = client.Predict(currentDictionary.Select(dt => dt.Name!.String ?? string.Empty)).ToList();
+                        for (int j = 0; j < currentDictionary.Count; j++) {
+                            var record = currentDictionary[j];
+                            var deepCopy = record.DeepCopy();
+                            deepCopy.Name = predictions[j];
+                            state.PatchMod.DialogTopics.GetOrAddAsOverride(deepCopy);
+                            cachedPredictions.TryAdd(record.FormKey, new DialogueTransformation()
+                            {
+                                SourceText = record.Name?.String ?? string.Empty,
+                                TargetText = predictions[j],
+                                FormKey = record.FormKey.ToString()
+                            });
+                            Interlocked.Increment(ref predictedAmount);
+                        }
+                    });
+                }
+                /*
+                _ = Task.Run(() =>
+                {
+                    while (predictedAmount < dialogRecordsToPredict.Count)
+                    {
+                        Thread.Sleep(30000);
+                        Console.WriteLine($"Predicting... {(int)(predictedAmount / dialogRecordsToPredict.Count * 100)}% done");
+                    }
+                });
+                */
+                Task.WhenAll(tasks).Wait();
+                sw.Stop();
+                Console.WriteLine($"Took {sw.Elapsed.TotalSeconds} sec to predict {dialogRecordsToPredict.Count} records.");
+            }
+
+            if (cachedPredictions.Any())
+            {
+                Console.WriteLine($"Saving cache for {cachedPredictions.Count} records...");
+                var cachedOverridesPath = Path.Combine(selectedModelPath.FullName, "CachedOverrides.csv");
+                if (!File.Exists(cachedOverridesPath))
+                    File.Create(cachedOverridesPath);
+
+                using (var writer = new StreamWriter(cachedOverridesPath))
+                using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
+                {
+                    csv.WriteHeader<DialogueTransformation>();
+                    csv.NextRecord();
+                    foreach (var dialogueTransformation in cachedPredictions.Values)
+                    {
+                        csv.WriteRecord(dialogueTransformation);
+                        csv.NextRecord();
+                    }
+                }
+            }
+            Console.WriteLine($"Done! Press any key to exit.");
+            Console.ReadKey();
         }
-
     }
 }
