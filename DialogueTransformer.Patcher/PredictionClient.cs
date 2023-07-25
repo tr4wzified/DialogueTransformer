@@ -29,7 +29,7 @@ namespace DialogueTransformer.Patcher
                 CreateNoWindow = true,
                 WorkingDirectory = exePath,
                 WindowStyle = ProcessWindowStyle.Hidden,
-                Arguments = $@"""{modelPath}"" ""{prefix}"" ""{separator}"""
+                Arguments = $@"""{modelPath}"" ""{prefix}"" ""{separator}""",
             };
             _Process = new Process() { StartInfo = startInfo, EnableRaisingEvents = false };
             _Process.Start();
@@ -40,7 +40,8 @@ namespace DialogueTransformer.Patcher
         }
         private IEnumerable<string> PredictInternal(IEnumerable<string> text)
         {
-            _Process.StandardInput.WriteLine(string.Join(Separator, text));
+            var joinedText = string.Join(Separator, text);
+            _Process.StandardInput.WriteLine(joinedText);
             _Process.StandardInput.Flush();
             var line = _Process.StandardOutput.ReadLine() ?? string.Empty;
             return line.Split(Separator);

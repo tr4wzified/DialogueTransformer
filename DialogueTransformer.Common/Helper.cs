@@ -43,6 +43,30 @@ namespace DialogueTransformer.Common
             }
             return dialogTranslations;
         }
+        public static Dictionary<string, DialogueTransformation> GetCachedTransformationsFromCsv(string path)
+        {
+            Dictionary<string, DialogueTransformation> dialogTranslations = new();
+            using (var reader = new StreamReader(path))
+            using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
+            {
+                try
+                {
+                    csv.Read();
+                    csv.ReadHeader();
+                    while (csv.Read())
+                    {
+                        var record = csv.GetRecord<DialogueTransformation>();
+                        if (record != null)
+                            dialogTranslations.Add(record.SourceText, record);
+                    }
+                }
+                catch(Exception ex)
+                {
+                    return new();
+                }
+            }
+            return dialogTranslations;
+        }
 
         public static ulong GetTotalMemory()
         {

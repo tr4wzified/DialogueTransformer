@@ -15,8 +15,6 @@ namespace DialogueTransformer.Patcher
 {
     public class Program
     {
-        private const string CSV_FILE_NAME = "KhajiitTranslations.csv";
-        private const string PATCHER_TYPE = "Khajiit";
         public static async Task<int> Main(string[] args)
         {
             return await SynthesisPipeline.Instance
@@ -61,7 +59,7 @@ namespace DialogueTransformer.Patcher
             }
 
             var joinedTransformationOverrides = overrideDialogTransformations.SelectMany(dict => dict).ToDictionary(pair => pair.Key, pair => pair.Value);
-            Dictionary<FormKey, IDialogTopicGetter> dialogRecordsToPredict = new();
+            Dictionary<string, IDialogTopicGetter> dialogRecordsToPredict = new();
 
             foreach (var dialogTopic in state.LoadOrder.PriorityOrder.DialogTopic().WinningContextOverrides())
             {
@@ -83,18 +81,18 @@ namespace DialogueTransformer.Patcher
                     continue;
 
                 // Fallback to translation algorithm
-                dialogRecordsToPredict.Add(dialogTopic.Record.FormKey, dialogTopic.Record);
+                dialogRecordsToPredict.Add(name, dialogTopic.Record);
             }
 
             var predictorPath = Path.Combine(state.InternalDataPath, "DialoguePredictor");
 
 
             // Split dictionary workload for each thread
-            ConcurrentDictionary<FormKey, DialogueTransformation> cachedPredictions = new();
+            ConcurrentDictionary<string, DialogueTransformation> cachedPredictions = new();
             var cachedPredictionsPath = Path.Combine(selectedModelPath.FullName, "CachedOverrides.csv");
             if (File.Exists(cachedPredictionsPath))
             {
-                cachedPredictions = new ConcurrentDictionary<FormKey, DialogueTransformation>(Helper.GetTransformationsFromCsv(cachedPredictionsPath));
+                cachedPredictions = new (Helper.GetCachedTransformationsFromCsv(cachedPredictionsPath));
                 Console.WriteLine($"Found {cachedPredictions.Count} cached predictions");
                 Console.WriteLine($"Removing the cached predictions from the prediction queue ({dialogRecordsToPredict.Count}...");
                 int cachedCount = 0;
@@ -117,12 +115,10 @@ namespace DialogueTransformer.Patcher
                 var maxMemoryAllowedToTakeUpInGB = (((memoryAmount - 2048000000) / 1024000000) / 2);
                 var predictionClientMemoryNeededInGB = 2;
                 var threadAmount = (int)(maxMemoryAllowedToTakeUpInGB / (ulong)predictionClientMemoryNeededInGB);
-                //var threadAmount = 20;
-                var chunkedDialogTopics = dialogRecordsToPredict.Values.Chunk(dialogRecordsToPredict.Count / threadAmount).Select(chunk => chunk.ToList()).ToList();
+                var chunkedDialogTopics = dialogRecordsToPredict.Values.Take(10).Chunk(dialogRecordsToPredict.Count / threadAmount).Select(chunk => chunk.ToList()).ToList();
                 Console.WriteLine($"Starting to predict {dialogRecordsToPredict.Count} records spread over {threadAmount} threads...");
                 var sw = Stopwatch.StartNew();
                 Task[] tasks = new Task[chunkedDialogTopics.Count];
-                int predictedAmount = 0;
                 for (int i = 0; i < chunkedDialogTopics.Count; i++)
                 {
                     var currentDictionary = chunkedDialogTopics[i];
@@ -135,13 +131,12 @@ namespace DialogueTransformer.Patcher
                             var deepCopy = record.DeepCopy();
                             deepCopy.Name = predictions[j];
                             state.PatchMod.DialogTopics.GetOrAddAsOverride(deepCopy);
-                            cachedPredictions.TryAdd(record.FormKey, new DialogueTransformation()
+                            cachedPredictions.TryAdd(record.Name?.String ?? string.Empty, new DialogueTransformation()
                             {
                                 SourceText = record.Name?.String ?? string.Empty,
                                 TargetText = predictions[j],
                                 FormKey = record.FormKey.ToString()
                             });
-                            Interlocked.Increment(ref predictedAmount);
                         }
                     });
                 }
