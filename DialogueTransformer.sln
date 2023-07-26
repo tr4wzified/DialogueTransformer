@@ -8,6 +8,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DialogueTransformer.Patcher
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DialogueTransformer.Common", "DialogueTransformer.Common\DialogueTransformer.Common.csproj", "{CFA60181-CAB9-4BDC-A75E-641321E8DF0E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DialogueTransformer.CsvOutputMerger", "DialogueTransformer.CsvOutputMerger\DialogueTransformer.CsvOutputMerger.csproj", "{8A85D7C9-EA35-40EC-B880-3C2D603A05D0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -26,6 +28,10 @@ Global
 		{CFA60181-CAB9-4BDC-A75E-641321E8DF0E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CFA60181-CAB9-4BDC-A75E-641321E8DF0E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CFA60181-CAB9-4BDC-A75E-641321E8DF0E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8A85D7C9-EA35-40EC-B880-3C2D603A05D0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8A85D7C9-EA35-40EC-B880-3C2D603A05D0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8A85D7C9-EA35-40EC-B880-3C2D603A05D0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8A85D7C9-EA35-40EC-B880-3C2D603A05D0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

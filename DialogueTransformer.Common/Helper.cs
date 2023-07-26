@@ -49,23 +49,31 @@ namespace DialogueTransformer.Common
             using (var reader = new StreamReader(path))
             using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
             {
-                try
+                csv.Read();
+                csv.ReadHeader();
+                while (csv.Read())
                 {
-                    csv.Read();
-                    csv.ReadHeader();
-                    while (csv.Read())
-                    {
-                        var record = csv.GetRecord<DialogueTransformation>();
-                        if (record != null)
-                            dialogTranslations.Add(record.SourceText, record);
-                    }
-                }
-                catch(Exception ex)
-                {
-                    return new();
+                    var record = csv.GetRecord<DialogueTransformation>();
+                    if (record != null)
+                        dialogTranslations.TryAdd(record.SourceText, record);
                 }
             }
             return dialogTranslations;
+        }
+
+        public static void WriteToCsv(IEnumerable<DialogueTransformation> dialogueTransformations, string path)
+        {
+            using (var writer = new StreamWriter(path))
+            using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
+            {
+                csv.WriteHeader<DialogueTransformation>();
+                csv.NextRecord();
+                foreach (var dialogueTransformation in dialogueTransformations)
+                {
+                    csv.WriteRecord(dialogueTransformation);
+                    csv.NextRecord();
+                }
+            }
         }
 
         public static ulong GetTotalMemory()

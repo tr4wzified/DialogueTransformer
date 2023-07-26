@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "DialogueTransformer.CsvOutputMerger": {
+      "commandName": "Project",
+      "commandLineArgs": "C:\\Users\\tik\\Downloads\\DialogueOutputs\r\n"
+    }
+  }
+}

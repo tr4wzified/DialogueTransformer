@@ -113,7 +113,7 @@ namespace DialogueTransformer.Patcher
             {
                 var memoryAmount = Helper.GetTotalMemory();
                 var maxMemoryAllowedToTakeUpInGB = (((memoryAmount - 2048000000) / 1024000000) / 2);
-                var predictionClientMemoryNeededInGB = 2;
+                var predictionClientMemoryNeededInGB = 3;
                 var threadAmount = (int)(maxMemoryAllowedToTakeUpInGB / (ulong)predictionClientMemoryNeededInGB);
                 var chunkedDialogTopics = dialogRecordsToPredict.Values.Take(10).Chunk(dialogRecordsToPredict.Count / threadAmount).Select(chunk => chunk.ToList()).ToList();
                 Console.WriteLine($"Starting to predict {dialogRecordsToPredict.Count} records spread over {threadAmount} threads...");
@@ -162,6 +162,7 @@ namespace DialogueTransformer.Patcher
                 if (!File.Exists(cachedOverridesPath))
                     File.Create(cachedOverridesPath);
 
+                /*
                 using (var writer = new StreamWriter(cachedOverridesPath))
                 using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
                 {
@@ -173,6 +174,8 @@ namespace DialogueTransformer.Patcher
                         csv.NextRecord();
                     }
                 }
+                helper
+                */
             }
             Console.WriteLine($"Done! Press any key to exit.");
             Console.ReadKey();
