@@ -1,5 +1,5 @@
 # DialogueTransformer
 
-![Logo](Logo/DialogueTransformer-Gradient.svg)
+![Logo](Logo/DialogueTransformer.svg)
 
 Patch Skyrim player dialogue through the power of AI!
