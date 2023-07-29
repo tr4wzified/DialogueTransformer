@@ -1,80 +1,92 @@
 using CsvHelper;
+using CsvHelper.Configuration;
+using DialogueTransformer.Common.Interfaces;
 using DialogueTransformer.Common.Models;
 using Mutagen.Bethesda.Plugins;
-using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
+using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
+using static DialogueTransformer.Common.Enumerations;
 
 namespace DialogueTransformer.Common
 {
     public static class Helper
     {
-
-
         [return: MarshalAs(UnmanagedType.Bool)]
         [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         private static extern bool GlobalMemoryStatusEx([In, Out] MEMORYSTATUSEX lpBuffer);
 
-        public static Dictionary<FormKey, DialogueTransformation> GetTransformationsFromCsv(string path)
+        public static Dictionary<FormKey, DialogueTextOverride> GetOverridesFromFile(string path)
         {
-            Dictionary<FormKey, DialogueTransformation> dialogTranslations = new();
-            using (var reader = new StreamReader(path))
-            using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
+            Dictionary<FormKey, DialogueTextOverride> transformations = new();
+            if (!File.Exists(path))
+                return transformations;
+
+            var config = new CsvConfiguration(CultureInfo.InvariantCulture)
             {
-                try
-                {
-                    csv.Read();
-                    csv.ReadHeader();
-                    while (csv.Read())
-                    {
-                        var record = csv.GetRecord<DialogueTransformation>();
-                        if (record != null)
-                            dialogTranslations.Add(FormKey.Factory(record.FormKey), record);
-                    }
-                }
-                catch(Exception ex)
-                {
-                    return new();
-                }
-            }
-            return dialogTranslations;
-        }
-        public static Dictionary<string, DialogueTransformation> GetCachedTransformationsFromCsv(string path)
-        {
-            Dictionary<string, DialogueTransformation> dialogTranslations = new();
+                MissingFieldFound = null
+            };
             using (var reader = new StreamReader(path))
-            using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
+            using (var csv = new CsvReader(reader, config))
             {
                 csv.Read();
                 csv.ReadHeader();
                 while (csv.Read())
                 {
-                    var record = csv.GetRecord<DialogueTransformation>();
-                    if (record != null)
-                        dialogTranslations.TryAdd(record.SourceText, record);
+                    var record = csv.GetRecord<DialogueTextOverride>();
+                    transformations.Add(FormKey.Factory(record.FormKey), record);
                 }
             }
-            return dialogTranslations;
+            return transformations;
+        }
+        public static Dictionary<string, string> GetTextConversionsFromFile(string path)
+        {
+            Dictionary<string, string> conversions = new();
+            if (!File.Exists(path))
+                return conversions;
+
+            var config = new CsvConfiguration(CultureInfo.InvariantCulture)
+            {
+                MissingFieldFound = null
+            };
+            using (var reader = new StreamReader(path))
+            using (var csv = new CsvReader(reader, config))
+            {
+                csv.Read();
+                csv.ReadHeader();
+                while (csv.Read())
+                {
+                    var conversion = csv.GetRecord<DialogueTextConversion>();
+                    conversions.TryAdd(conversion.SourceText, conversion.TargetText);
+                }
+            }
+            return conversions;
         }
 
-        public static void WriteToCsv(IEnumerable<DialogueTransformation> dialogueTransformations, string path)
+        public static void WriteToFile<T>(IEnumerable<T> source, string path)
         {
+            if (!File.Exists(path))
+                File.Create(path);
+
             using (var writer = new StreamWriter(path))
             using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
             {
-                csv.WriteHeader<DialogueTransformation>();
+                csv.WriteHeader<T>();
                 csv.NextRecord();
-                foreach (var dialogueTransformation in dialogueTransformations)
+                foreach (var item in source)
                 {
-                    csv.WriteRecord(dialogueTransformation);
+                    csv.WriteRecord(item);
                     csv.NextRecord();
                 }
             }
         }
+
+        public static Dictionary<DialogueModelType, IDialogueModel> GetModels(string dataFolderPath) => Assembly.GetExecutingAssembly()
+                                                                                                        .GetExportedTypes()
+                                                                                                        .Where(x => !x.IsInterface && !x.IsAbstract && typeof(IDialogueModel).IsAssignableFrom(x))
+                                                                                                        .Select(x => (IDialogueModel)Activator.CreateInstance(x, dataFolderPath)!)
+                                                                                                        .ToDictionary(x => x.Type);
+        public static Dictionary<DialogueModelType, IDialogueModel> GetInstalledModels(string dataFolderPath) => GetModels(dataFolderPath).Where(x => x.Value.Installed).ToDictionary(x => x.Key, x => x.Value);
 
         public static ulong GetTotalMemory()
         {

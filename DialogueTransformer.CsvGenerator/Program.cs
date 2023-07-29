@@ -27,10 +27,9 @@ namespace DialogueTransformer.CsvGenerator
                     .AddPatch<ISkyrimMod, ISkyrimModGetter>(RunPatch)
                     .SetTypicalOpen(GameRelease.SkyrimSE, "CsvGen.esp")
                     .Run(args);
-                /*
+
                 if (File.Exists(Path.Combine(DataFolderPath, "CsvGen.esp")))
                     File.Delete(Path.Combine(DataFolderPath, "CsvGen.esp"));
-                */
                 return patched;
             }
             catch(Exception ex)
@@ -86,7 +85,7 @@ namespace DialogueTransformer.CsvGenerator
             var selectedModKey = modKeys[selectedModKeyNumber - 1];
             */
 
-            List<DialogueTransformation> dialogueTransformations = new();
+            List<DialogueTextOverride> dialogueNeedingConversion = new();
 
             foreach (var dialogTopic in state.LoadOrder.PriorityOrder.DialogTopic().WinningContextOverrides())
             {
@@ -109,11 +108,10 @@ namespace DialogueTransformer.CsvGenerator
                     continue;
 
                 //var sourceDialogue = baseRecord.Name?.String;
-                dialogueTransformations.Add(new DialogueTransformation()
+                dialogueNeedingConversion.Add(new DialogueTextOverride()
                 {
                     FormKey = dialogTopic.Record.FormKey.ToString(),
                     SourceText = name,
-                    //TargetText = name
                 });
 
 
@@ -137,7 +135,7 @@ namespace DialogueTransformer.CsvGenerator
                 */
                 //}
             }
-            if (!dialogueTransformations.Any())
+            if (!dialogueNeedingConversion.Any())
             {
                 //Console.WriteLine($"No player dialogue found in mod {selectedModKey.FileName}!");
                 Console.WriteLine($"No player dialogue found");
@@ -150,9 +148,9 @@ namespace DialogueTransformer.CsvGenerator
             using (var writer = new StreamWriter(Path.Combine(state.DataFolderPath, "DialogueOutput.csv")))
             using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
             {
-                csv.WriteHeader<DialogueTransformation>();
+                csv.WriteHeader<DialogueTextOverride>();
                 csv.NextRecord();
-                foreach (var dialogueTransformation in dialogueTransformations)
+                foreach (var dialogueTransformation in dialogueNeedingConversion)
                 {
                     {
                         //using (var writer = new StreamWriter(Path.Combine(state.DataFolderPath, "DialogueTransformer", selectedModel.Name, $"{groupedDialogueTransformation.ModKey.Name}.csv")))

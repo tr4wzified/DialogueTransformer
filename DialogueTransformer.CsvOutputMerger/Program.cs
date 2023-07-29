@@ -1,5 +1,3 @@
-// See https://aka.ms/new-console-template for more information
-using CsvHelper;
 using DialogueTransformer.Common;
 using DialogueTransformer.Common.Models;
 
@@ -7,18 +5,22 @@ public class Program {
     public static void Main(string[] args)
     {
         var path = args[0];
-        var mergedDictionary = new Dictionary<string, DialogueTransformation>();
+        var mergedDictionary = new Dictionary<string, DialogueTextConversion>();
         int totalCount = 0;
         foreach(var csvFile in Directory.GetFiles(path, "*.csv"))
         {
-            var dictionary = Helper.GetCachedTransformationsFromCsv(csvFile);
+            var dictionary = Helper.GetTextConversionsFromFile(csvFile);
             foreach(var (sourceDialogue, transformation) in dictionary)
             {
+                // Don't overwrite transformations with filled target text
+                if (mergedDictionary.TryGetValue(sourceDialogue, out var existingTransformation) && !string.IsNullOrEmpty(existingTransformation.TargetText))
+                    continue;
                 mergedDictionary[sourceDialogue] = transformation;
             }
             totalCount += dictionary.Count;
         }
-        Helper.WriteToCsv(mergedDictionary.Values, "./MergedTransformations.csv");
+        Console.WriteLine($"Cache contains {mergedDictionary.Count} records. There are currently {mergedDictionary.Count((pair) => string.IsNullOrEmpty(pair.Value.TargetText))} unpredicted records.");
+        Helper.WriteToFile(mergedDictionary.Values, Path.Combine(path, "_PregeneratedCache.csv"));
     }
 }
 
