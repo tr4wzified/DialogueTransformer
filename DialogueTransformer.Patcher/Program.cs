@@ -1,16 +1,10 @@
 using Mutagen.Bethesda;
 using Mutagen.Bethesda.Synthesis;
 using Mutagen.Bethesda.Skyrim;
-using CsvHelper;
-using System.Globalization;
-using Mutagen.Bethesda.Plugins;
 using DialogueTransformer.Common.Models;
 using DialogueTransformer.Common;
 using System.Diagnostics;
-using System.Collections.Concurrent;
-using System.Runtime.InteropServices;
-using System.Reflection;
-using static DialogueTransformer.Common.Enumerations;
+using Humanizer;
 
 namespace DialogueTransformer.Patcher
 {
@@ -34,7 +28,7 @@ namespace DialogueTransformer.Patcher
         {
 
             if (!state.InternalDataPath.HasValue)
-                throw new Exception("InternalDataPath was null - patcher cannot function!");
+                throw new Exception("InternalDataPath was null - patcher cannot function, inferencing client missing!");
 
             var settings = Settings.Value;
             Console.WriteLine($"<------------------------------------------->");
@@ -125,16 +119,17 @@ namespace DialogueTransformer.Patcher
                 var memoryAmount = Helper.GetTotalMemory();
                 // Half of the installed memory in the system divided by 2, in GB
                 var maxAllocatedMemory = (((memoryAmount - 2048000000) / 1024000000) / 2);
-                // Number of processors
-                var processorCount = Environment.ProcessorCount;
-                var predictionClientMemoryNeededInGB = 3;
-                var threadAmount = (int)(maxAllocatedMemory / (ulong)predictionClientMemoryNeededInGB);
+                var reservedMemoryPerClient = 3;
+                var threadAmount = Math.Min((int)(maxAllocatedMemory / (ulong)reservedMemoryPerClient), Environment.ProcessorCount / 4);
+                //var threadAmount = 7;
                 var chunkedDialogTopics = dialogueNeedingInferencing.Chunk(dialogueNeedingInferencing.Count / threadAmount).Select(chunk => chunk.ToDictionary(x => x.Key, x => x.Value)).ToList();
                 Console.WriteLine($"> Inferencing {dialogueNeedingInferencing.Count} dialogue lines using LLM spread over {threadAmount} threads...");
-                var sw = Stopwatch.StartNew();
                 Task[] tasks = new Task[chunkedDialogTopics.Count];
                 int inferencedAmount = 0;
+
+                // Print every 5%
                 int printPercentageStep = dialogueNeedingInferencing.Count <= 20 ? 1 : dialogueNeedingInferencing.Count / 20;
+                var sw = Stopwatch.StartNew();
                 for (int i = 0; i < chunkedDialogTopics.Count; i++)
                 {
                     var currentDictionary = chunkedDialogTopics[i];
@@ -152,21 +147,23 @@ namespace DialogueTransformer.Patcher
                             }
                             selectedModel.LocalCache.TryAdd(sourceText, inferencedText);
                             Interlocked.Increment(ref inferencedAmount);
+
+                            // Progress tracking & saving to local cache in between predictions
                             if (inferencedAmount % printPercentageStep == 0)
-                                Console.WriteLine($"> Processed {inferencedAmount}/{dialogueNeedingInferencing.Count} records ({Convert.ToInt32(inferencedAmount / dialogueNeedingInferencing.Count * 100)}% done)");
+                            {
+                                decimal percentage = (100 * inferencedAmount) / dialogueNeedingInferencing.Count;
+                                double iterationsPerSecond = inferencedAmount / sw.Elapsed.TotalSeconds;
+                                TimeSpan estimatedTimeToCompletion = TimeSpan.FromSeconds((double)((dialogueNeedingInferencing.Count - inferencedAmount) / iterationsPerSecond));
+                                Console.WriteLine($"> Processed {inferencedAmount}/{dialogueNeedingInferencing.Count} records ({percentage}% done). {Math.Round(iterationsPerSecond, 2)}it/s, est. time to completion: {estimatedTimeToCompletion.Humanize(minUnit: Humanizer.Localisation.TimeUnit.Second)}");
+                                // Save every other step (10%)
+                                if(inferencedAmount % (printPercentageStep * 2) == 0)
+                                {
+                                    Helper.WriteToFile(selectedModel.LocalCache.Select(x => new DialogueTextConversion(x.Key, x.Value)), Path.Combine(selectedModel.Directory.FullName, $"{Consts.LOCAL_CACHE_FILENAME}.{Consts.DATA_FORMAT}"));
+                                }
+                            }
                         }
                     });
                 }
-                /*
-                _ = Task.Run(() =>
-                {
-                    while (inferencedAmount < dialogueNeedingInferencing.Count)
-                    {
-                        Thread.Sleep(30000);
-                        Console.WriteLine($"Inferencing dialogue... {((int)(inferencedAmount / dialogueNeedingInferencing.Count * 100))}% done");
-                    }
-                });
-                */
                 Task.WhenAll(tasks).Wait();
                 sw.Stop();
                 Console.WriteLine($"> Took {sw.Elapsed.TotalSeconds} sec to inference {dialogueNeedingInferencing.Count} records.");

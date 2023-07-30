@@ -80,22 +80,35 @@ namespace DialogueTransformer.Common
             return conversions;
         }
 
-        public static void WriteToFile<T>(IEnumerable<T> source, string path)
+        public static bool WriteToFile<T>(IEnumerable<T> source, string path, int retryAmount = 3)
         {
-            if (!File.Exists(path))
-                File.Create(path);
-
-            using (var writer = new StreamWriter(path))
-            using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
+            try
             {
-                csv.WriteHeader<T>();
-                csv.NextRecord();
-                foreach (var item in source)
+                if (!File.Exists(path))
+                    File.Create(path);
+
+                using (var writer = new StreamWriter(path))
+                using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
                 {
-                    csv.WriteRecord(item);
+                    csv.WriteHeader<T>();
                     csv.NextRecord();
+                    foreach (var item in source)
+                    {
+                        csv.WriteRecord(item);
+                        csv.NextRecord();
+                    }
                 }
+                return true;
             }
+            catch(Exception ex)
+            {
+                Console.WriteLine($"> Failed to write to {path}: {ex}");
+                Console.WriteLine("> Trying again in 3 seconds...");
+                Thread.Sleep(3000);
+                if(retryAmount > 0)
+                    return WriteToFile<T>(source, path, retryAmount - 1);
+            }
+            return false;
         }
 
         public static Dictionary<DialogueModelType, IDialogueModel> GetModels(string dataFolderPath) => Assembly.GetExecutingAssembly()

@@ -12,7 +12,7 @@ namespace DialogueTransformer.Patcher
         /// <summary>
         /// Use manual overrides (for example, handwritten dialogue) over trying to inference dialogue from the LLM
         /// </summary>
-        public bool UseOverrides { get; set; } = true;
+        public bool UseOverrides { get; set; } = false;
         public DialogueModelType Model { get; set; }
         public override string ToString()
         {
