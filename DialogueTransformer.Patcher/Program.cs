@@ -36,12 +36,17 @@ namespace DialogueTransformer.Patcher
             if (!state.InternalDataPath.HasValue)
                 throw new Exception("InternalDataPath was null - patcher cannot function!");
 
-            Console.WriteLine($"Running DialogueTransformer by trawzified");
+            var settings = Settings.Value;
+            Console.WriteLine($"<------------------------------------------->");
+            Console.WriteLine($"< Running DialogueTransformer by trawzified >");
+            Console.WriteLine($"<---------------- Settings ----------------->");
+            Console.WriteLine(settings.ToString());
+            Console.WriteLine($"<------------------------------------------->");
 
             var availableModels = Helper.GetModels(state.DataFolderPath);
-            var selectedModel = availableModels[Settings.Value.Model];
+            var selectedModel = availableModels[settings.Model];
             if (!selectedModel.Installed)
-                throw new Exception($"Selected model {Settings.Value.Model}, but it's not installed! Exiting. You can download it here: {selectedModel.DownloadUrl}");
+                throw new Exception($"> Selected model {settings.Model}, but it's not installed! Exiting. You can download it here: {selectedModel.DownloadUrl}");
 
             Dictionary<string, List<IDialogTopicGetter>> dialogueNeedingInferencing = new();
 
@@ -52,7 +57,7 @@ namespace DialogueTransformer.Patcher
                     continue;
 
                 // First try to use the previously translated records from analyzed Khajiit patches
-                if (Settings.Value.UseOverrides && selectedModel.Overrides.TryGetValue(dialogTopic.Record.FormKey, out var dialogTranslation))
+                if (settings.UseOverrides && selectedModel.Overrides.TryGetValue(dialogTopic.Record.FormKey, out var dialogTranslation))
                 {
                     var translatedDialog = dialogTopic.Record.DeepCopy();
                     translatedDialog.Name = dialogTranslation.TargetText;
@@ -72,33 +77,47 @@ namespace DialogueTransformer.Patcher
 
             if (!dialogueNeedingInferencing.Any())
             {
-                Console.WriteLine("Patching complete as no dialogue needs inferencing.");
+                Console.WriteLine("> Patching complete as no dialogue needs inferencing.");
                 return;
             }
+            Console.WriteLine($"> {dialogueNeedingInferencing.Count} total dialogue records need inferencing");
 
-            var inferencorPath = Path.Combine(state.InternalDataPath, "DialoguePredictor");
+            var inferencingClientPath = Path.Combine(state.InternalDataPath, Consts.INFERENCING_EXE_FOLDER);
 
-
-            ConcurrentDictionary<string, string> preCache = new(selectedModel.PreCache);
-            int cachedCount = 0;
-            if (preCache.Any())
+            bool preCacheHasRecords = selectedModel.PreCache.Any();
+            bool localCacheHasRecords = selectedModel.LocalCache.Any();
+            if (preCacheHasRecords || localCacheHasRecords)
             {
-                Console.WriteLine($"Found {preCache.Count} pre-cached dialogue records");
-                Console.WriteLine($"Subtracting the pre-cached records from the queue ({dialogueNeedingInferencing.Count} records)...");
-                foreach (var cacheRecord in preCache)
+                int preCachedCount = 0, localCachedCount = 0;
+                Console.WriteLine($"> Found {selectedModel.PreCache.Count} pre-cached dialogue records");
+                Console.WriteLine($"> Found {selectedModel.LocalCache.Count} locally cached dialogue records");
+                foreach (var (sourceText, dialogTopicGetters) in dialogueNeedingInferencing)
                 {
-                    if (dialogueNeedingInferencing.TryGetValue(cacheRecord.Key, out var dialogTopicGetters))
+                    bool foundRecordInCache = false;
+                    string? inferencedText = null;
+                    if (preCacheHasRecords)
                     {
-                        foreach (var dialogTopicGetter in dialogTopicGetters)
-                        {
-                            var recordCopy = dialogTopicGetter.DeepCopy();
-                            recordCopy.Name = cacheRecord.Value;
-                            state.PatchMod.DialogTopics.GetOrAddAsOverride(recordCopy);
-                            cachedCount++;
-                        }
-                        dialogueNeedingInferencing.Remove(cacheRecord.Key);
+                        foundRecordInCache = selectedModel.PreCache.TryGetValue(sourceText, out inferencedText);
+                        if(foundRecordInCache) preCachedCount++;
                     }
+                    if (!foundRecordInCache && localCacheHasRecords)
+                    {
+                        foundRecordInCache = selectedModel.LocalCache.TryGetValue(sourceText, out inferencedText);
+                        if(foundRecordInCache) localCachedCount++;
+                    }
+
+                    if (!foundRecordInCache)
+                        continue;
+
+                    foreach (var dialogTopicGetter in dialogTopicGetters)
+                    {
+                        var recordCopy = dialogTopicGetter.DeepCopy();
+                        recordCopy.Name!.Set(Mutagen.Bethesda.Strings.Language.English, inferencedText);
+                        state.PatchMod.DialogTopics.GetOrAddAsOverride(recordCopy);
+                    }
+                    dialogueNeedingInferencing.Remove(sourceText);
                 }
+                Console.WriteLine($"> Resolved {preCachedCount} lines from pre-cache, {localCachedCount} from local cache - {dialogueNeedingInferencing.Count} records yet to be inferenced");
             }
 
             if (dialogueNeedingInferencing.Any())
@@ -111,17 +130,17 @@ namespace DialogueTransformer.Patcher
                 var predictionClientMemoryNeededInGB = 3;
                 var threadAmount = (int)(maxAllocatedMemory / (ulong)predictionClientMemoryNeededInGB);
                 var chunkedDialogTopics = dialogueNeedingInferencing.Chunk(dialogueNeedingInferencing.Count / threadAmount).Select(chunk => chunk.ToDictionary(x => x.Key, x => x.Value)).ToList();
-                Console.WriteLine($"Inferenced {cachedCount} records from pre-generated cache. {dialogueNeedingInferencing.Count} records remain uninferenced. Inferencing dialogue using LLM spread over {threadAmount} threads...");
+                Console.WriteLine($"> Inferencing {dialogueNeedingInferencing.Count} dialogue lines using LLM spread over {threadAmount} threads...");
                 var sw = Stopwatch.StartNew();
                 Task[] tasks = new Task[chunkedDialogTopics.Count];
-                ConcurrentDictionary<string, string> localCache = new(selectedModel.LocalCache);
                 int inferencedAmount = 0;
+                int printPercentageStep = dialogueNeedingInferencing.Count <= 20 ? 1 : dialogueNeedingInferencing.Count / 20;
                 for (int i = 0; i < chunkedDialogTopics.Count; i++)
                 {
                     var currentDictionary = chunkedDialogTopics[i];
                     tasks[i] = Task.Run(() =>
                     {
-                        var client = new InferencingClient(inferencorPath, Path.Combine(selectedModel.Directory.FullName, Consts.MODEL_SUBDIR_NAME), selectedModel.Prefix ?? string.Empty);
+                        var client = new InferencingClient(inferencingClientPath, Path.Combine(selectedModel.Directory.FullName, Consts.MODEL_SUBDIR_NAME), selectedModel.Prefix ?? string.Empty);
                         foreach (var (sourceText, dialogTopics) in currentDictionary)
                         {
                             var inferencedText = client.Inference(sourceText);
@@ -131,8 +150,10 @@ namespace DialogueTransformer.Patcher
                                 copiedTopic.Name?.Set(Mutagen.Bethesda.Strings.Language.English, inferencedText);
                                 state.PatchMod.DialogTopics.GetOrAddAsOverride(copiedTopic);
                             }
-                            localCache.TryAdd(sourceText, inferencedText);
+                            selectedModel.LocalCache.TryAdd(sourceText, inferencedText);
                             Interlocked.Increment(ref inferencedAmount);
+                            if (inferencedAmount % printPercentageStep == 0)
+                                Console.WriteLine($"> Processed {inferencedAmount}/{dialogueNeedingInferencing.Count} records ({Convert.ToInt32(inferencedAmount / dialogueNeedingInferencing.Count * 100)}% done)");
                         }
                     });
                 }
@@ -148,12 +169,10 @@ namespace DialogueTransformer.Patcher
                 */
                 Task.WhenAll(tasks).Wait();
                 sw.Stop();
-                Console.WriteLine($"Took {sw.Elapsed.TotalSeconds} sec to inference {dialogueNeedingInferencing.Count} records.");
-
-                Console.WriteLine($"Saving cache for {localCache.Count} records...");
-                Helper.WriteToFile(localCache.Select(x => new DialogueTextConversion(x.Key, x.Value)), Path.Combine(selectedModel.Directory.FullName, $"{Consts.LOCAL_CACHE_FILENAME}.{Consts.DATA_FORMAT}"));
-
-                Console.WriteLine($"Done!");
+                Console.WriteLine($"> Took {sw.Elapsed.TotalSeconds} sec to inference {dialogueNeedingInferencing.Count} records.");
+                Console.WriteLine($"> Saving local cache for {selectedModel.LocalCache.Count} records...");
+                Helper.WriteToFile(selectedModel.LocalCache.Select(x => new DialogueTextConversion(x.Key, x.Value)), Path.Combine(selectedModel.Directory.FullName, $"{Consts.LOCAL_CACHE_FILENAME}.{Consts.DATA_FORMAT}"));
+                Console.WriteLine($"> Saved!");
             }
         }
     }

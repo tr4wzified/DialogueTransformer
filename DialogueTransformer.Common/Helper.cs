@@ -29,12 +29,20 @@ namespace DialogueTransformer.Common
             using (var reader = new StreamReader(path))
             using (var csv = new CsvReader(reader, config))
             {
-                csv.Read();
-                csv.ReadHeader();
-                while (csv.Read())
+                try
                 {
-                    var record = csv.GetRecord<DialogueTextOverride>();
-                    transformations.Add(FormKey.Factory(record.FormKey), record);
+                    csv.Read();
+                    csv.ReadHeader();
+                    while (csv.Read())
+                    {
+                        var record = csv.GetRecord<DialogueTextOverride>();
+                        transformations.Add(FormKey.Factory(record.FormKey), record);
+                    }
+                }
+                catch(Exception ex)
+                {
+                    Console.Write(ex.ToString());
+                    return new();
                 }
             }
             return transformations;
@@ -52,12 +60,21 @@ namespace DialogueTransformer.Common
             using (var reader = new StreamReader(path))
             using (var csv = new CsvReader(reader, config))
             {
-                csv.Read();
-                csv.ReadHeader();
-                while (csv.Read())
+                try
                 {
-                    var conversion = csv.GetRecord<DialogueTextConversion>();
-                    conversions.TryAdd(conversion.SourceText, conversion.TargetText);
+                    csv.Read();
+                    csv.ReadHeader();
+                    while (csv.Read())
+                    {
+                        var conversion = csv.GetRecord<DialogueTextConversion>();
+                        if(!string.IsNullOrEmpty(conversion.TargetText))
+                            conversions.TryAdd(conversion.SourceText, conversion.TargetText);
+                    }
+                }
+                catch(Exception ex)
+                {
+                    Console.WriteLine(ex.ToString());
+                    return new();
                 }
             }
             return conversions;

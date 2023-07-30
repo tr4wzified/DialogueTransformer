@@ -351,4 +351,4 @@ MigrationBackup/
 # Custom
 /DialogueTransformer.Python/build/
 /DialogueTransformer.Python/dist/
-/DialogueTransformer.Patcher/InternalData/DialoguePredictor
+/DialogueTransformer.Patcher/InternalData/DialogueInferencingClient

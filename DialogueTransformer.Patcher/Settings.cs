@@ -14,5 +14,13 @@ namespace DialogueTransformer.Patcher
         /// </summary>
         public bool UseOverrides { get; set; } = true;
         public DialogueModelType Model { get; set; }
+        public override string ToString()
+        {
+            StringBuilder sb = new();
+            sb.AppendLine($"> {nameof(UseOverrides)}: {UseOverrides}");
+            sb.Append($"> {nameof(Model)}: {Model}");
+
+            return sb.ToString();
+        }
     }
 }

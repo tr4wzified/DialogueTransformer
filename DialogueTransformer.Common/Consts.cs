@@ -8,5 +8,9 @@ namespace DialogueTransformer.Common
         public const string PREGENERATED_CACHE_FILENAME = "_PregeneratedCache";
         public const string LOCAL_CACHE_FILENAME = "_LocalCache";
         public const string MODEL_SUBDIR_NAME = "Model";
+
+        /* Python executable paths */
+        public const string INFERENCING_EXE_FILE = "DialogueInferencingClient.exe";
+        public const string INFERENCING_EXE_FOLDER = "DialogueInferencingClient";
     }
 }

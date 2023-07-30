@@ -1,3 +1,4 @@
+using DialogueTransformer.Common;
 using Noggog.Utility;
 using System.Diagnostics;
 using System.Text;
@@ -12,7 +13,7 @@ namespace DialogueTransformer.Patcher
         private Process _Process { get; set; }
         public InferencingClient(string exePath, string modelPath, string prefix)
         {
-            var filePath = Path.Combine(exePath, "DialoguePredictor.exe");
+            var filePath = Path.Combine(exePath, Consts.INFERENCING_EXE_FILE);
             ProcessStartInfo startInfo = new ProcessStartInfo()
             {
                 FileName = filePath,
@@ -21,7 +22,7 @@ namespace DialogueTransformer.Patcher
                 RedirectStandardOutput = true,
                 CreateNoWindow = true,
                 WorkingDirectory = exePath,
-                WindowStyle = ProcessWindowStyle.Hidden,
+                WindowStyle = ProcessWindowStyle.Normal,
                 Arguments = $@"""{modelPath}"" ""{prefix}""",
             };
             _Process = new Process() { StartInfo = startInfo, EnableRaisingEvents = false };

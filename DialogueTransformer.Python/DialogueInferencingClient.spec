@@ -17,7 +17,7 @@ block_cipher = None
 
 
 a = Analysis(
-    ['DialoguePredictor.py'],
+    ['DialogueInferencingClient.py'],
     pathex=[],
     binaries=[],
     datas=datas,
@@ -38,7 +38,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name='DialoguePredictor',
+    name='DialogueInferencingClient',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -58,5 +58,5 @@ coll = COLLECT(
     strip=False,
     upx=True,
     upx_exclude=[],
-    name='DialoguePredictor',
+    name='DialogueInferencingClient',
 )
