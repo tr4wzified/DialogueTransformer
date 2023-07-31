@@ -12,16 +12,22 @@ parser = argparse.ArgumentParser(
 parser.add_argument('model_path', help="The path to the large language model")
 parser.add_argument('csv_path', help='The path to the DialogueTransformations csv that should be predicted')
 parser.add_argument('prefix', help="The prefix before the input to the large language model")
+parser.add_argument('--reset', default=False, help='Whether to start from scratch or not', action=argparse.BooleanOptionalAction)
 
 args = parser.parse_args()
 
-df = pd.read_csv(args.csv_path)
+
+df = pd.read_csv(args.csv_path, index_col=0)
+if args.reset:
+    print('Resetting...')
+    df['target_text'] = None
+    df.to_csv(args.csv_path)
 
 use_gpu = False
 if torch.cuda.is_available():
     use_gpu = True
 
-print(use_gpu)
+print('Use GPU: ', use_gpu)
 
 model = SimpleT5()
 model.load_model("t5", args.model_path, use_gpu=use_gpu)
@@ -41,4 +47,5 @@ for index, row in df.iterrows():
         print("Saved at " + strftime("%H:%M:%S", localtime()) + " [" + str(index + 1) + "/" + str(total_amount) + "]")
         df.to_csv(args.csv_path)
 
+df.to_csv(args.csv_path)
 #print(args.separator.join(to_return))
