@@ -1,8 +1,7 @@
 {
   "profiles": {
     "DialogueTransformer.CsvGenerator": {
-      "commandName": "Project",
-      "commandLineArgs": "C:\\Users\\tik\\Downloads\\DialogueOutputs"
+      "commandName": "Project"
     }
   }
 }

@@ -4,6 +4,7 @@ using DialogueTransformer.Common.Interfaces;
 using DialogueTransformer.Common.Models;
 using Mutagen.Bethesda.Plugins;
 using System.Globalization;
+using System.Net;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using static DialogueTransformer.Common.Enumerations;
@@ -79,7 +80,6 @@ namespace DialogueTransformer.Common
             }
             return conversions;
         }
-
         public static bool WriteToFile<T>(IEnumerable<T> source, string path, int retryAmount = 3)
         {
             try

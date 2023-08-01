@@ -10,13 +10,22 @@ namespace DialogueTransformer.Common.Models.DialogueModels
         public ADialogueModel(string dataFolderPath)
         {
             Directory = new DirectoryInfo(Path.Combine(dataFolderPath, Consts.DATA_SUBDIR_NAME, Type.ToString()));
-            Overrides = System.IO.Directory.GetFiles(Path.Combine(Directory.FullName, Consts.DATA_SUBDIR_OVERRIDES_NAME), $"*.{Consts.DATA_FORMAT}")
-                                           .SelectMany(x => Helper.GetOverridesFromFile(x))
-                                           .ToDictionary(x => x.Key, x => x.Value);
+            try
+            {
+                Overrides = System.IO.Directory.GetFiles(Path.Combine(Directory.FullName, Consts.DATA_SUBDIR_OVERRIDES_NAME), $"*.{Consts.DATA_FORMAT}")
+                                               .SelectMany(x => Helper.GetOverridesFromFile(x))
+                                               .ToDictionary(x => x.Key, x => x.Value);
+            }
+            catch(DirectoryNotFoundException)
+            {
+                Console.WriteLine($"> Found no overrides for model {GetType()}");
+                Overrides = new();
+            }
             PreCache = Helper.GetTextConversionsFromFile(Path.Combine(Directory.FullName, $"{Consts.PREGENERATED_CACHE_FILENAME}.{Consts.DATA_FORMAT}"));
             LocalCache = Helper.GetTextConversionsFromFile(Path.Combine(Directory.FullName, $"{Consts.LOCAL_CACHE_FILENAME}.{Consts.DATA_FORMAT}"));
         }
 
+        public abstract string ApplyPostInferencingFixes(string inferencedText);
         public abstract string DownloadUrl { get; }
         public abstract string Prefix { get; }
         public DirectoryInfo Directory { get; }

@@ -3,15 +3,15 @@ using static DialogueTransformer.Common.Enumerations;
 
 namespace DialogueTransformer.Common.Models.DialogueModels
 {
-    public class KhajiitDialogueModel : ADialogueModel
+    public class UwuDialogueModel : ADialogueModel
     {
-        public KhajiitDialogueModel(string dataFolderPath) : base(dataFolderPath)
+        public UwuDialogueModel(string dataFolderPath) : base(dataFolderPath)
         {
         }
 
-        public override DialogueModelType Type => DialogueModelType.KhajiitSpeak;
+        public override DialogueModelType Type => DialogueModelType.UwuSpeak;
         public override string DownloadUrl => "";
-        public override string Prefix => "khajiit: ";
+        public override string Prefix => "uwu: ";
         public override string ApplyPostInferencingFixes(string prediction)
         {
             if (prediction.Length == 0)

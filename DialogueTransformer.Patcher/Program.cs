@@ -28,7 +28,9 @@ namespace DialogueTransformer.Patcher
         {
 
             if (!state.InternalDataPath.HasValue)
-                throw new Exception("InternalDataPath was null - patcher cannot function, inferencing client missing!");
+            {
+                throw new Exception("> InternalDataPath was null - patcher cannot function, inferencing client missing!");
+            }
 
             var settings = Settings.Value;
             Console.WriteLine($"<------------------------------------------->");
@@ -116,12 +118,22 @@ namespace DialogueTransformer.Patcher
 
             if (dialogueNeedingInferencing.Any())
             {
+
+                // Download inferencing client if it doesn't exist in the internal data path yet
+                var inferencingPath = Path.Combine(state.InternalDataPath.Value.Path, Consts.INFERENCING_EXE_FOLDER);
+                if(!File.Exists(Path.Combine(inferencingPath, Consts.INFERENCING_EXE_FILE)))
+                {
+                    Console.WriteLine("> DialogueInferencingClient not found, downloading now (approximately 400MB, may take a bit depending on your connection)...");
+                    var zd = new ZipDownloader();
+                    await zd.DownloadAndExtractZip(Consts.INFERENCING_DOWNLOAD_URL, inferencingPath);
+                }
+
+                // Calculate amount of threads to use
                 var memoryAmount = Helper.GetTotalMemory();
                 // Half of the installed memory in the system divided by 2, in GB
                 var maxAllocatedMemory = (((memoryAmount - 2048000000) / 1024000000) / 2);
                 var reservedMemoryPerClient = 3;
                 var threadAmount = Math.Min((int)(maxAllocatedMemory / (ulong)reservedMemoryPerClient), Environment.ProcessorCount / 4);
-                //var threadAmount = 7;
                 var chunkedDialogTopics = dialogueNeedingInferencing.Chunk(dialogueNeedingInferencing.Count / threadAmount).Select(chunk => chunk.ToDictionary(x => x.Key, x => x.Value)).ToList();
                 Console.WriteLine($"> Inferencing {dialogueNeedingInferencing.Count} dialogue lines using LLM spread over {threadAmount} threads...");
                 Task[] tasks = new Task[chunkedDialogTopics.Count];
@@ -138,7 +150,7 @@ namespace DialogueTransformer.Patcher
                         var client = new InferencingClient(inferencingClientPath, Path.Combine(selectedModel.Directory.FullName, Consts.MODEL_SUBDIR_NAME), selectedModel.Prefix ?? string.Empty);
                         foreach (var (sourceText, dialogTopics) in currentDictionary)
                         {
-                            var inferencedText = client.Inference(sourceText);
+                            var inferencedText = selectedModel.ApplyPostInferencingFixes(client.Inference(sourceText));
                             foreach (var dialogTopic in dialogTopics)
                             {
                                 var copiedTopic = dialogTopic.DeepCopy();

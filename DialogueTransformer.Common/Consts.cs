@@ -12,5 +12,6 @@ namespace DialogueTransformer.Common
         /* Python executable paths */
         public const string INFERENCING_EXE_FILE = "DialogueInferencingClient.exe";
         public const string INFERENCING_EXE_FOLDER = "DialogueInferencingClient";
+        public const string INFERENCING_DOWNLOAD_URL = "https://github.com/tr4wzified/DialogueTransformer/releases/download/1.0/DialogueInferencingClient.zip";
     }
 }

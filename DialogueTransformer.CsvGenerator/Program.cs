@@ -56,39 +56,21 @@ namespace DialogueTransformer.CsvGenerator
             Console.WriteLine("-----------------------------------------------------------------------------");
 
             int selectedModelNumber = 0;
-            /*
-            while (selectedModelNumber <= 0)
-            {
-                Console.WriteLine("Select a model to generate a CSV override template for: ");
-                for(int i = 0; i < availableModels.Count; i++)
-                {
-                    var model = availableModels[i];
-                    Console.WriteLine($"({i + 1}) - {model.Name}");
-                }
-                int.TryParse(Console.ReadLine(), out selectedModelNumber);
-            }
-            var selectedModel = availableModels[selectedModelNumber - 1];
-
-            int selectedModKeyNumber = 0;
-            while (selectedModKeyNumber <= 0)
-            {
-                Console.WriteLine("Select the plugin to generate a CSV override template for: ");
-                Thread.Sleep(2500);
-                for(int i = 0; i < modKeys.Count; i++)
-                {
-                    var model = modKeys[i];
-                    Console.WriteLine($"({i + 1}) - {model.FileName}");
-                }
-                int.TryParse(Console.ReadLine(), out selectedModKeyNumber);
-            }
-
-            var selectedModKey = modKeys[selectedModKeyNumber - 1];
-            */
-
             List<DialogueTextOverride> dialogueNeedingConversion = new();
+            HashSet<string> espsToGetDialogueFrom = new()
+            {
+                "gdoWo.esp",
+                "savetheicewunnew.esp",
+                "SLWF uwuified.esp",
+                "uwuspeaktheweuwuing.esp",
+                "weawm of wowkhan.esp",
+                "impwovedcowwegeentwy.esp"
+            };
 
             foreach (var dialogTopic in state.LoadOrder.PriorityOrder.DialogTopic().WinningContextOverrides())
             {
+                if (!espsToGetDialogueFrom.Contains(dialogTopic.ModKey.FileName))
+                    continue;
                 var recordToUse = dialogTopic.Record;
                 if (!state.LinkCache.TryResolve<IDialogTopicGetter>(dialogTopic.Record.FormKey, out var baseRecord, ResolveTarget.Origin))
                     recordToUse = baseRecord;
@@ -99,8 +81,8 @@ namespace DialogueTransformer.CsvGenerator
                 {
                 */
                 var name = recordToUse?.Name?.String ?? string.Empty;
-                //var baseRecordName = baseRecord.Name?.String ?? string.Empty;
-                if (string.IsNullOrEmpty(name))
+                var baseRecordName = baseRecord?.Name?.String ?? string.Empty;
+                if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(baseRecordName))
                     continue;
 
                 // Check if this is a sentence or just some unused keyword kinda thing, if none of these characters are in the string just skip it to save useless processing time on the language model
@@ -111,7 +93,8 @@ namespace DialogueTransformer.CsvGenerator
                 dialogueNeedingConversion.Add(new DialogueTextOverride()
                 {
                     FormKey = dialogTopic.Record.FormKey.ToString(),
-                    SourceText = name,
+                    SourceText = baseRecordName,
+                    TargetText = name
                 });
 
 

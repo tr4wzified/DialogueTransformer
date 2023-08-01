@@ -14,5 +14,7 @@ namespace DialogueTransformer.Common.Interfaces
         Dictionary<string, string> PreCache { get; }
         Dictionary<string, string> LocalCache { get; }
         string? Prefix { get; }
+
+        string ApplyPostInferencingFixes(string prediction);
     }
 }
