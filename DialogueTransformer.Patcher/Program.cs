@@ -10,7 +10,7 @@ namespace DialogueTransformer.Patcher
 {
     public class Program
     {
-        static Lazy<Settings> Settings = null!;
+        public static Lazy<Settings> Settings = null!;
 
         public static async Task<int> Main(string[] args)
         {
