@@ -1,0 +1,14 @@
+{
+  "Nickname": "",
+  "Visibility": "Exclude",
+  "OneLineDescription": "",
+  "LongDescription": "",
+  "PreferredAutoVersioning": "Default",
+  "RequiredMods": [],
+  "TargetedReleases": [
+    "SkyrimLE",
+    "SkyrimSE",
+    "SkyrimVR",
+    "SkyrimSEGog"
+  ]
+}
