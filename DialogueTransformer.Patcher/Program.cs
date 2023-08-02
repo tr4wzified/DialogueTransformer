@@ -27,11 +27,6 @@ namespace DialogueTransformer.Patcher
         public static async void RunPatch(IPatcherState<ISkyrimMod, ISkyrimModGetter> state)
         {
 
-            if (!state.InternalDataPath.HasValue)
-            {
-                throw new Exception("> InternalDataPath was null - patcher cannot function, inferencing client missing!");
-            }
-
             var settings = Settings.Value;
             Console.WriteLine($"<------------------------------------------->");
             Console.WriteLine($"< Running DialogueTransformer by trawzified >");
