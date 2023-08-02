@@ -73,7 +73,7 @@ namespace DialogueTransformer.Patcher
             }
             Console.WriteLine($"> {dialogueNeedingInferencing.Count} total dialogue records need inferencing");
 
-            var inferencingClientPath = Path.Combine(state.InternalDataPath, Consts.INFERENCING_EXE_FOLDER);
+            var inferencingClientPath = Path.Combine(state.DataFolderPath.Path, Consts.INFERENCING_EXE_FOLDER);
 
             bool preCacheHasRecords = selectedModel.PreCache.Any();
             bool localCacheHasRecords = selectedModel.LocalCache.Any();
