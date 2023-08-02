@@ -103,9 +103,8 @@ namespace DialogueTransformer.Common
             catch(Exception ex)
             {
                 Console.WriteLine($"> Failed to write to {path}: {ex}");
-                return WriteToFile(source, path);
+                return false;
             }
-            return false;
         }
 
         public static Dictionary<DialogueModelType, IDialogueModel> GetModels(string dataFolderPath) => Assembly.GetExecutingAssembly()
