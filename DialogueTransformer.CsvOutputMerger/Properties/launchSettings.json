@@ -2,7 +2,7 @@
   "profiles": {
     "DialogueTransformer.CsvOutputMerger": {
       "commandName": "Project",
-      "commandLineArgs": "C:\\Users\\tik\\Downloads\\DialogueOutputs\r\n"
+      "commandLineArgs": "C:\\Users\\tik\\Downloads\\DialogueTransformer_UWUSpeak\\Data\\DialogueTransformer\\UwuSpeak"
     }
   }
 }

@@ -118,12 +118,12 @@ namespace DialogueTransformer.Patcher
 
             if (dialogueNeedingInferencing.Any())
             {
-
                 // Download inferencing client if it doesn't exist in the internal data path yet
-                var inferencingPath = Path.Combine(state.InternalDataPath.Value.Path, Consts.INFERENCING_EXE_FOLDER);
+                var inferencingPath = Path.Combine(state.DataFolderPath.Path, Consts.DATA_SUBDIR_NAME, Consts.INFERENCING_EXE_FOLDER);
                 if(!File.Exists(Path.Combine(inferencingPath, Consts.INFERENCING_EXE_FILE)))
                 {
                     Console.WriteLine("> DialogueInferencingClient not found, downloading now (approximately 400MB, may take a bit depending on your connection)...");
+                    Console.WriteLine("> If you're having trouble getting past this step, try downloading the DialogueInferencingClient manually from the Nexus page and install it through your mod manager.");
                     var zd = new ZipDownloader();
                     await zd.DownloadAndExtractZip(Consts.INFERENCING_DOWNLOAD_URL, inferencingPath);
                 }
