@@ -9,7 +9,7 @@ namespace DialogueTransformer.Patcher
         /// Use manual overrides (for example, handwritten dialogue) over trying to inference dialogue from the LLM
         /// </summary>
         public bool UseOverrides { get; set; } = false;
-        public DialogueModelType Model { get; set; } = DialogueModelType.UwuSpeak;
+        public DialogueModelType Model { get; set; } = DialogueModelType.KhajiitSpeak;
         public override string ToString()
         {
             StringBuilder sb = new();
