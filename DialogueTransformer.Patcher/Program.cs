@@ -73,8 +73,6 @@ namespace DialogueTransformer.Patcher
             }
             Console.WriteLine($"> {dialogueNeedingInferencing.Count} total dialogue records need inferencing");
 
-            var inferencingClientPath = Path.Combine(state.DataFolderPath.Path, Consts.INFERENCING_EXE_FOLDER);
-
             bool preCacheHasRecords = selectedModel.PreCache.Any();
             bool localCacheHasRecords = selectedModel.LocalCache.Any();
             if (preCacheHasRecords || localCacheHasRecords)
@@ -142,7 +140,7 @@ namespace DialogueTransformer.Patcher
                     var currentDictionary = chunkedDialogTopics[i];
                     tasks[i] = Task.Run(() =>
                     {
-                        var client = new InferencingClient(inferencingClientPath, Path.Combine(selectedModel.Directory.FullName, Consts.MODEL_SUBDIR_NAME), selectedModel.Prefix ?? string.Empty);
+                        var client = new InferencingClient(inferencingPath, Path.Combine(selectedModel.Directory.FullName, Consts.MODEL_SUBDIR_NAME), selectedModel.Prefix ?? string.Empty);
                         foreach (var (sourceText, dialogTopics) in currentDictionary)
                         {
                             var inferencedText = selectedModel.ApplyPostInferencingFixes(client.Inference(sourceText));
