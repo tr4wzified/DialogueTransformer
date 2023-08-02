@@ -14,19 +14,12 @@
 
   <ItemGroup>
     <Compile Remove="dist\**" />
-    <Compile Remove="InternalData\**" />
     <EmbeddedResource Remove="dist\**" />
-    <EmbeddedResource Remove="InternalData\**" />
     <None Remove="dist\**" />
-    <None Remove="InternalData\**" />
   </ItemGroup>
 
   <ItemGroup>
     <None Remove="KhajiitTranslations.csv" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="InternalData\dummy.txt" />
   </ItemGroup>
 
 
