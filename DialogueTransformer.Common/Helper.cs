@@ -80,7 +80,7 @@ namespace DialogueTransformer.Common
             }
             return conversions;
         }
-        public static bool WriteToFile<T>(IEnumerable<T> source, string path, int retryAmount = 3)
+        public static bool WriteToFile<T>(IEnumerable<T> source, string path)
         {
             try
             {
@@ -103,10 +103,7 @@ namespace DialogueTransformer.Common
             catch(Exception ex)
             {
                 Console.WriteLine($"> Failed to write to {path}: {ex}");
-                Console.WriteLine("> Trying again in 3 seconds...");
-                Thread.Sleep(3000);
-                if(retryAmount > 0)
-                    return WriteToFile<T>(source, path, retryAmount - 1);
+                return WriteToFile(source, path);
             }
             return false;
         }

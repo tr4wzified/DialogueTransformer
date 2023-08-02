@@ -22,7 +22,7 @@ namespace DialogueTransformer.Patcher
                 RedirectStandardOutput = true,
                 CreateNoWindow = true,
                 WorkingDirectory = exePath,
-                WindowStyle = ProcessWindowStyle.Normal,
+                WindowStyle = ProcessWindowStyle.Hidden,
                 Arguments = $@"""{modelPath}"" ""{prefix}""",
             };
             _Process = new Process() { StartInfo = startInfo, EnableRaisingEvents = false };
