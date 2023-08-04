@@ -123,10 +123,22 @@ namespace DialogueTransformer.Patcher
 
                 // Calculate amount of threads to use
                 var memoryAmount = Helper.GetTotalMemory();
+                if (memoryAmount <= 4096000000)
+                    throw new Exception("You have less than 4GB of RAM, DialogueTransformer does not support systems with 4GB of RAM or less.");
+
                 // Half of the installed memory in the system divided by 2, in GB
                 var maxAllocatedMemory = (((memoryAmount - 2048000000) / 1024000000) / 2);
                 var reservedMemoryPerClient = 3;
+
+
                 var threadAmount = Math.Min((int)(maxAllocatedMemory / (ulong)reservedMemoryPerClient), Environment.ProcessorCount / 4);
+                if (Environment.ProcessorCount < 4)
+                    throw new Exception("You have a CPU with less than 4 threads, DialogueTransformer does not support systems with these CPUs.");
+
+                // Don't spawn multiple threads when very few bits of dialogue need to be generated
+                if (threadAmount >= dialogueNeedingInferencing.Count)
+                    threadAmount = 1;
+
                 var chunkedDialogTopics = dialogueNeedingInferencing.Chunk(dialogueNeedingInferencing.Count / threadAmount).Select(chunk => chunk.ToDictionary(x => x.Key, x => x.Value)).ToList();
                 Console.WriteLine($"> Inferencing {dialogueNeedingInferencing.Count} dialogue lines using LLM spread over {threadAmount} threads...");
                 Task[] tasks = new Task[chunkedDialogTopics.Count];

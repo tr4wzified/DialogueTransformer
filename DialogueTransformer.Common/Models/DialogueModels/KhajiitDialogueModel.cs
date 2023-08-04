@@ -24,13 +24,13 @@ namespace DialogueTransformer.Common.Models.DialogueModels
                 var word = words[i];
                 var greaterThanIndex = word.IndexOf(">");
                 // Correct Alias=Player>, pronouns and <Global> to include the <, model training error
-                var aliasIndex = word.IndexOf("Alias");
+                var aliasIndex = word.IndexOf("Alias=");
                 if (aliasIndex != -1 && greaterThanIndex != -1)
-                    word = word.Replace("Alias", "<Alias");
+                    word = word.Replace("Alias=", "<Alias=");
 
-                var globalIndex = word.IndexOf("Global");
+                var globalIndex = word.IndexOf("Global=");
                 if (globalIndex != -1 && greaterThanIndex != -1)
-                    word = word.Replace("Global", "<Global");
+                    word = word.Replace("Global=", "<Global=");
 
                 if (i == words.Length - 1)
                     outputBuilder.Append(word);
