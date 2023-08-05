@@ -5,6 +5,7 @@ using DialogueTransformer.Common.Models;
 using DialogueTransformer.Common;
 using System.Diagnostics;
 using Humanizer;
+using System.Collections.Concurrent;
 
 namespace DialogueTransformer.Patcher
 {
@@ -146,6 +147,7 @@ namespace DialogueTransformer.Patcher
                 // Print every 5%
                 int printPercentageStep = dialogueNeedingInferencing.Count <= 20 ? 1 : dialogueNeedingInferencing.Count / 20;
                 var sw = Stopwatch.StartNew();
+                var localCache = new ConcurrentDictionary<string, string>(selectedModel.LocalCache);
                 for (int i = 0; i < chunkedDialogTopics.Count; i++)
                 {
                     var currentDictionary = chunkedDialogTopics[i];
@@ -161,7 +163,7 @@ namespace DialogueTransformer.Patcher
                                 copiedTopic.Name?.Set(Mutagen.Bethesda.Strings.Language.English, inferencedText);
                                 state.PatchMod.DialogTopics.GetOrAddAsOverride(copiedTopic);
                             }
-                            selectedModel.LocalCache.TryAdd(sourceText, inferencedText);
+                            localCache.TryAdd(sourceText, inferencedText);
                             Interlocked.Increment(ref inferencedAmount);
 
                             // Progress tracking & saving to local cache in between predictions
@@ -186,7 +188,7 @@ namespace DialogueTransformer.Patcher
                 sw.Stop();
                 Console.WriteLine($"> Took {sw.Elapsed.TotalSeconds} sec to inference {dialogueNeedingInferencing.Count} records.");
                 Console.WriteLine($"> Saving local cache for {selectedModel.LocalCache.Count} records...");
-                Helper.WriteToFile(selectedModel.LocalCache.Select(x => new DialogueTextConversion(x.Key, x.Value)), Path.Combine(selectedModel.Directory.FullName, $"{Consts.LOCAL_CACHE_FILENAME}.{Consts.DATA_FORMAT}"));
+                Helper.WriteToFile(localCache.Select(x => new DialogueTextConversion(x.Key, x.Value)), Path.Combine(selectedModel.Directory.FullName, $"{Consts.LOCAL_CACHE_FILENAME}.{Consts.DATA_FORMAT}"));
                 Console.WriteLine($"> Saved!");
             }
         }
