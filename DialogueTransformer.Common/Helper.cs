@@ -102,7 +102,7 @@ namespace DialogueTransformer.Common
             }
             catch(Exception ex)
             {
-                Console.WriteLine($"> Failed to write to {path}: {ex}");
+                Console.WriteLine($"> Failed to write to {path}: {ex.Message}");
                 return false;
             }
         }
