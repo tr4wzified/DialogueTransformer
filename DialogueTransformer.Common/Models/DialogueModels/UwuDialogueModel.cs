@@ -10,7 +10,7 @@ namespace DialogueTransformer.Common.Models.DialogueModels
         }
 
         public override DialogueModelType Type => DialogueModelType.UwuSpeak;
-        public override string DownloadUrl => "";
+        public override string DownloadUrl => "https://www.nexusmods.com/skyrimspecialedition/mods/97654";
         public override string Prefix => "uwu: ";
         public override string ApplyPostInferencingFixes(string prediction)
         {
