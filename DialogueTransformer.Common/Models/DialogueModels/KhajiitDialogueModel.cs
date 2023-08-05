@@ -15,7 +15,6 @@ namespace DialogueTransformer.Common.Models.DialogueModels
         public override string Prefix => "khajiit: ";
         public override string ApplyPostInferencingFixes(string prediction)
         {
-            var origPrediction = " " + prediction;
             if (prediction.Length == 0)
                 return prediction;
 
