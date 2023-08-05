@@ -171,8 +171,8 @@ namespace DialogueTransformer.Patcher
                                 double iterationsPerSecond = inferencedAmount / sw.Elapsed.TotalSeconds;
                                 TimeSpan estimatedTimeToCompletion = TimeSpan.FromSeconds((double)((dialogueNeedingInferencing.Count - inferencedAmount) / iterationsPerSecond));
                                 Console.WriteLine($"> Processed {inferencedAmount}/{dialogueNeedingInferencing.Count} records ({percentage}% done). {Math.Round(iterationsPerSecond, 2)}it/s, est. time to completion: {estimatedTimeToCompletion.Humanize(minUnit: Humanizer.Localisation.TimeUnit.Second)}");
-                                // Save every other step (10%)
-                                if(inferencedAmount % (printPercentageStep * 2) == 0)
+                                // Save every 20%
+                                if(inferencedAmount % (printPercentageStep * 4) == 0)
                                 {
                                     Helper.WriteToFile(selectedModel.LocalCache.Select(x => new DialogueTextConversion(x.Key, x.Value)), Path.Combine(selectedModel.Directory.FullName, $"{Consts.LOCAL_CACHE_FILENAME}.{Consts.DATA_FORMAT}"));
                                 }
