@@ -130,7 +130,6 @@ namespace DialogueTransformer.Patcher
                 var maxAllocatedMemory = (((memoryAmount - 2048000000) / 1024000000) / 2);
                 var reservedMemoryPerClient = 3;
 
-
                 var threadAmount = Math.Min((int)(maxAllocatedMemory / (ulong)reservedMemoryPerClient), Environment.ProcessorCount / 4);
                 if (Environment.ProcessorCount < 4)
                     throw new Exception("You have a CPU with less than 4 threads, DialogueTransformer does not support systems with these CPUs.");
