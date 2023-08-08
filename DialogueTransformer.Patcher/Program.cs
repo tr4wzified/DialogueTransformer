@@ -11,6 +11,7 @@ namespace DialogueTransformer.Patcher
 {
     public class Program
     {
+        private static readonly object localCacheWriteLock = new();
         public static Lazy<Settings> Settings = null!;
 
         public static async Task<int> Main(string[] args)
@@ -29,11 +30,11 @@ namespace DialogueTransformer.Patcher
         {
 
             var settings = Settings.Value;
-            Console.WriteLine($"<------------------------------------------->");
-            Console.WriteLine($"< Running DialogueTransformer by trawzified >");
-            Console.WriteLine($"<---------------- Settings ----------------->");
+            Console.WriteLine($"<-------------------------------------------------->");
+            Console.WriteLine($"< Running DialogueTransformer v1.0.2 by trawzified >");
+            Console.WriteLine($"<---------------- Settings ------------------------>");
             Console.WriteLine(settings.ToString());
-            Console.WriteLine($"<------------------------------------------->");
+            Console.WriteLine($"<-------------------------------------------------->");
 
             var availableModels = Helper.GetModels(state.DataFolderPath);
             var selectedModel = availableModels[settings.Model];
@@ -110,6 +111,9 @@ namespace DialogueTransformer.Patcher
                 Console.WriteLine($"> Resolved {preCachedCount} lines from pre-cache, {localCachedCount} from local cache - {dialogueNeedingInferencing.Count} records yet to be inferenced");
             }
 
+            // DEBUG
+            dialogueNeedingInferencing = dialogueNeedingInferencing.Take(100).ToDictionary(x => x.Key, x => x.Value);
+
             if (dialogueNeedingInferencing.Any())
             {
                 // Download inferencing client if it doesn't exist in the internal data path yet
@@ -174,12 +178,13 @@ namespace DialogueTransformer.Patcher
                                 TimeSpan estimatedTimeToCompletion = TimeSpan.FromSeconds((double)((dialogueNeedingInferencing.Count - inferencedAmount) / iterationsPerSecond));
                                 Console.WriteLine($"> Processed {inferencedAmount}/{dialogueNeedingInferencing.Count} records ({percentage}% done). {Math.Round(iterationsPerSecond, 2)}it/s, est. time to completion: {estimatedTimeToCompletion.Humanize(minUnit: Humanizer.Localisation.TimeUnit.Second)}");
                                 // Save every 20%
-                                /*
-                                if(inferencedAmount % (printPercentageStep * 4) == 0)
+                                if (inferencedAmount % (printPercentageStep * 4) == 0)
                                 {
-                                    Helper.WriteToFile(selectedModel.LocalCache.Select(x => new DialogueTextConversion(x.Key, x.Value)), Path.Combine(selectedModel.Directory.FullName, $"{Consts.LOCAL_CACHE_FILENAME}.{Consts.DATA_FORMAT}"));
+                                    lock (localCacheWriteLock)
+                                    {
+                                        Helper.WriteToFile(selectedModel.LocalCache.Select(x => new DialogueTextConversion(x.Key, x.Value)), Path.Combine(selectedModel.Directory.FullName, $"{Consts.LOCAL_CACHE_FILENAME}.{Consts.DATA_FORMAT}"));
+                                    }
                                 }
-                                */
                             }
                         }
                     });
@@ -188,7 +193,10 @@ namespace DialogueTransformer.Patcher
                 sw.Stop();
                 Console.WriteLine($"> Took {sw.Elapsed.TotalSeconds} sec to inference {dialogueNeedingInferencing.Count} records.");
                 Console.WriteLine($"> Saving local cache for {selectedModel.LocalCache.Count} records...");
-                Helper.WriteToFile(localCache.Select(x => new DialogueTextConversion(x.Key, x.Value)), Path.Combine(selectedModel.Directory.FullName, $"{Consts.LOCAL_CACHE_FILENAME}.{Consts.DATA_FORMAT}"));
+                lock (localCacheWriteLock)
+                {
+                    Helper.WriteToFile(localCache.Select(x => new DialogueTextConversion(x.Key, x.Value)), Path.Combine(selectedModel.Directory.FullName, $"{Consts.LOCAL_CACHE_FILENAME}.{Consts.DATA_FORMAT}"));
+                }
                 Console.WriteLine($"> Saved!");
             }
         }

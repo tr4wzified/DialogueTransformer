@@ -85,7 +85,7 @@ namespace DialogueTransformer.Common
             try
             {
                 if (!File.Exists(path))
-                    File.Create(path);
+                    File.Create(path).Dispose();
 
                 using (var writer = new StreamWriter(path))
                 using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
