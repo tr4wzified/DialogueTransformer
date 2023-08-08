@@ -111,9 +111,6 @@ namespace DialogueTransformer.Patcher
                 Console.WriteLine($"> Resolved {preCachedCount} lines from pre-cache, {localCachedCount} from local cache - {dialogueNeedingInferencing.Count} records yet to be inferenced");
             }
 
-            // DEBUG
-            dialogueNeedingInferencing = dialogueNeedingInferencing.Take(100).ToDictionary(x => x.Key, x => x.Value);
-
             if (dialogueNeedingInferencing.Any())
             {
                 // Download inferencing client if it doesn't exist in the internal data path yet
@@ -177,8 +174,8 @@ namespace DialogueTransformer.Patcher
                                 double iterationsPerSecond = inferencedAmount / sw.Elapsed.TotalSeconds;
                                 TimeSpan estimatedTimeToCompletion = TimeSpan.FromSeconds((double)((dialogueNeedingInferencing.Count - inferencedAmount) / iterationsPerSecond));
                                 Console.WriteLine($"> Processed {inferencedAmount}/{dialogueNeedingInferencing.Count} records ({percentage}% done). {Math.Round(iterationsPerSecond, 2)}it/s, est. time to completion: {estimatedTimeToCompletion.Humanize(minUnit: Humanizer.Localisation.TimeUnit.Second)}");
-                                // Save every 20%
-                                if (inferencedAmount % (printPercentageStep * 4) == 0)
+                                // Save every 10% if processing > 50 records
+                                if (inferencedAmount % (printPercentageStep * 2) == 0 && dialogueNeedingInferencing.Count > 50)
                                 {
                                     lock (localCacheWriteLock)
                                     {
