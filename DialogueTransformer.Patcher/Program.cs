@@ -6,6 +6,7 @@ using DialogueTransformer.Common;
 using System.Diagnostics;
 using Humanizer;
 using System.Collections.Concurrent;
+using Mutagen.Bethesda.Plugins.Exceptions;
 
 namespace DialogueTransformer.Patcher
 {
@@ -52,9 +53,16 @@ namespace DialogueTransformer.Patcher
                 // First try to use the previously translated records from analyzed Khajiit patches
                 if (settings.UseOverrides && selectedModel.Overrides.TryGetValue(dialogTopic.Record.FormKey, out var dialogTranslation))
                 {
-                    var translatedDialog = dialogTopic.Record.DeepCopy();
-                    translatedDialog.Name = dialogTranslation.TargetText;
-                    state.PatchMod.DialogTopics.GetOrAddAsOverride(translatedDialog);
+                    try
+                    {
+                        var translatedDialog = dialogTopic.Record.DeepCopy();
+                        translatedDialog.Name = dialogTranslation.TargetText;
+                        state.PatchMod.DialogTopics.GetOrAddAsOverride(translatedDialog);
+                    }
+                    catch(Exception ex)
+                    {
+                        throw RecordException.Enrich(ex, dialogTopic.ModKey, dialogTopic.Record);
+                    }
                     continue;
                 }
 
@@ -102,9 +110,16 @@ namespace DialogueTransformer.Patcher
 
                     foreach (var dialogTopicGetter in dialogTopicGetters)
                     {
-                        var recordCopy = dialogTopicGetter.DeepCopy();
-                        recordCopy.Name!.Set(Mutagen.Bethesda.Strings.Language.English, inferencedText);
-                        state.PatchMod.DialogTopics.GetOrAddAsOverride(recordCopy);
+                        try
+                        {
+                            var recordCopy = dialogTopicGetter.DeepCopy();
+                            recordCopy.Name!.Set(Mutagen.Bethesda.Strings.Language.English, inferencedText);
+                            state.PatchMod.DialogTopics.GetOrAddAsOverride(recordCopy);
+                        }
+                        catch(Exception ex)
+                        {
+                            throw RecordException.Enrich(ex, dialogTopicGetter.FormKey.ModKey, dialogTopicGetter);
+                        }
                     }
                     dialogueNeedingInferencing.Remove(sourceText);
                 }
@@ -160,9 +175,15 @@ namespace DialogueTransformer.Patcher
                             var inferencedText = selectedModel.ApplyPostInferencingFixes(client.Inference(sourceText));
                             foreach (var dialogTopic in dialogTopics)
                             {
-                                var copiedTopic = dialogTopic.DeepCopy();
-                                copiedTopic.Name?.Set(Mutagen.Bethesda.Strings.Language.English, inferencedText);
-                                state.PatchMod.DialogTopics.GetOrAddAsOverride(copiedTopic);
+                                try {
+                                    var copiedTopic = dialogTopic.DeepCopy();
+                                    copiedTopic.Name?.Set(Mutagen.Bethesda.Strings.Language.English, inferencedText);
+                                    state.PatchMod.DialogTopics.GetOrAddAsOverride(copiedTopic);
+                                }
+                                catch(Exception ex)
+                                {
+                                    throw RecordException.Enrich(ex, dialogTopic.FormKey.ModKey, dialogTopic);
+                                }
                             }
                             localCache.TryAdd(sourceText, inferencedText);
                             Interlocked.Increment(ref inferencedAmount);
